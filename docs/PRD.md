@@ -34,3 +34,7 @@ Vamos começar com um resumo dos gastos feitos naquele mês, onde cada categoria
 ### Formato
 
 Vamos fazer tudo isso num formato web app
+
+## Stakeholders
+
+Só eu vou usar isso, mas vou querer mostrar os resultados para minha esposa e discutirmos em cima das análises. Nesse primeiro momento, não precisamos nos preocupar com outra pessoa acessando isso.
