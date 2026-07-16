@@ -15,7 +15,7 @@ Considerar todas as nossas transações (entrada e saída) de diferentes canais 
 ## MVP
 ### Registro de gasto e categorização
 
-Nesse MVP, a idéia é que eu consiga subir ou a fatura para coletar esses dados mais facilmente, para começar a registrar os gastos com os seguintes dados:
+Nesse MVP, a idéia é que eu consiga subir a fatura para coletar esses dados mais facilmente, para começar a registrar os gastos com os seguintes dados:
 
 - Data: seria a data da transação
 - Empresa: De onde ou para onde foi o dinheiro
