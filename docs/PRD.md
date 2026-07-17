@@ -18,12 +18,15 @@ Considerar todas as nossas transações (entrada e saída) de diferentes canais 
 Nesse MVP, a idéia é que eu consiga subir a fatura para coletar esses dados mais facilmente, para começar a registrar os gastos com os seguintes dados:
 
 - Data: seria a data da transação
-- Empresa: De onde ou para onde foi o dinheiro
 - Tipo: Entrada ou saída de dinheiro
+- Instituição: Por onde foi feita a transação (ex: Nubank, C6)
+- Formato: De qual forma foi feita a transação (ex: pix, cartão de crédito)
+- Empresa: De onde ou para onde foi o dinheiro
 - Parcela: Indicar se é uma compra parcelada ou não
     - Obs: No MVP, não precisamos conectar as compras parceladas entre si
 - Categoria: Qual a origem do gasto (Ex: alimentação, educação, saúde, lazer, transporte, etc)
-    - Obs: provavelmente vai exigir garantir que a categoria represente de fato o motivo da compra já que os MCCs podem não representar a realidade
+    - Identificar a qual categoria determinada transação pertence vai ser um trabalho gradual onde a cada fatura que subo eu devo categorizar o que ainda não se sabe. Uma vez categorizado, essa informação deve ser salva num lugar para que seja reaproveitada na interpretação de uma outra fatura. Vale também considerar a possibilidade que eu vou errar de categoria e vou querer corrigir depois, sendo que essa correção deve valer de forma retroativa
+    - Para reduzir meu trabalho, se for possível de se já trazer sugestões a partir de algumas palavras-chave (ex: “Uber” → “transporte”), pode trazer a sugestão
 - Valor: O valor gasto
     - Obs: no caso de uma compra parcelada, seria o valor de uma única parcela
 
