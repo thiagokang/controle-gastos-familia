@@ -15,7 +15,7 @@ Considerar todas as nossas transações (entrada e saída) de diferentes canais 
 ## MVP
 ### Registro de gasto e categorização
 
-Nesse MVP, a idéia é que eu consiga subir a fatura para coletar esses dados mais facilmente, para começar a registrar os gastos com os seguintes dados:
+Nesse MVP, a idéia é que eu consiga subir a fatura em CSV para coletar esses dados mais facilmente, para começar a registrar os gastos com os seguintes dados:
 
 - Data: seria a data da transação
 - Tipo: Entrada ou saída de dinheiro
@@ -38,6 +38,81 @@ Vamos começar com um resumo dos gastos feitos naquele mês, onde cada categoria
 
 Vamos fazer tudo isso num formato web app
 
-## Stakeholders
+### Stack técnica
 
-Só eu vou usar isso, mas vou querer mostrar os resultados para minha esposa e discutirmos em cima das análises. Nesse primeiro momento, não precisamos nos preocupar com outra pessoa acessando isso.
+Next.js para front e JSON local para armazenamento das transações
+
+### Navegação
+
+O produto terá um menu lateral fixo com duas seções: **Transações** e **Análises**.
+
+- **Transações**: lista de todas as transações já confirmadas, com data, empresa, categoria e valor.
+- **Análises**: comporta múltiplas análises. A primeira é o Resumo mensal (gráfico de barras por categoria). As demais análises já mapeadas no backlog (Visão geral vs. média histórica, Tendência da categoria) entram aqui também, conforme forem desenvolvidas.
+
+Um botão de upload de fatura fica sempre acessível, independente da seção onde o usuário está.
+
+**Fluxo de upload:** (1) o usuário seleciona qual é a fonte do arquivo (ex: C6 (cartão de crédito), Nubank (cartão de crédito), Nubank (extrato conta corrente / Pix)) — isso define qual mapeamento de colunas será usado; (2) faz o upload do CSV; (3) passa pela tela de revisão/categorização (sugestões + edição manual); (4) confirma. As transações só aparecem na aba Transações depois dessa confirmação.
+
+**Tela de Transações:** organizada por fatura (cada fatura/mês é uma página, navegável com setas). Inclui filtro por categoria e por mês. Busca livre por texto fica fora do MVP (backlog). A categoria de qualquer transação também pode ser editada diretamente aqui (não só na tela de revisão do upload), com o mesmo comportamento retroativo (atualiza todas as transações passadas da mesma empresa).
+
+### Fontes de dados e regras de importação (adaptador por fonte)
+
+O app suporta múltiplas fontes de fatura/extrato. Antes do upload, o usuário seleciona qual é a fonte do arquivo — essa escolha determina qual mapeamento de colunas abaixo será aplicado.
+
+Cada tabela abaixo mostra, para cada **campo do app**, de onde ele vem no arquivo original ou qual regra é usada para preenchê-lo quando não existe uma coluna correspondente direta.
+
+#### Fonte 1: C6 (cartão de crédito)
+
+Colunas do arquivo: `Data de Compra` · `Nome no Cartão` · `Final do Cartão` · `Categoria` · `Descrição` · `Parcela` · `Valor (em US$)` · `Cotação (em R$)` · `Valor (em R$)` — separador `;`
+
+| Campo do app | Origem / regra |
+| --- | --- |
+| Data | ← coluna `Data de Compra` |
+| Tipo | Regra: "saída" por padrão; se `Valor (em R$)` for negativo → "entrada" (ver regra de Estorno abaixo)
+Antes disso, linhas que representam pagamento da própria fatura (ex: descrição contendo "Pag fatura boleto") são descartadas e não geram transação |
+| Instituição | Fixo: "C6" (não vem do arquivo, vem da fonte escolhida) |
+| Formato | Fixo: "Cartão de crédito" (não vem do arquivo) |
+| Empresa | ← coluna `Descrição` |
+| Parcela | ← coluna `Parcela` |
+| Categoria | Recalculada pelo motor de categorização (regras aprendidas + palavra-chave); a coluna `Categoria` do arquivo é ignorada. Não há categoria fixa para estorno — o usuário categoriza como preferir (ex: criando uma categoria "Estorno" própria, se quiser) |
+| Valor | ← coluna `Valor (em R$)` |
+| *(ignorados)* | `Nome no Cartão`, `Final do Cartão`, `Valor (em US$)`, `Cotação (em R$)` — não usados no MVP |
+
+#### Fonte 2: Nubank (cartão de crédito)
+
+Colunas do arquivo: `date` · `title` · `amount` (valor com vírgula decimal, entre aspas) — separador `,`
+
+| Campo do app | Origem / regra |
+| --- | --- |
+| Data | ← coluna `date` |
+| Tipo | Regra: "saída" por padrão; se `amount` for negativo → "entrada" (ver regra de Estorno abaixo). Antes disso, linhas que representam pagamento da própria fatura (ex: título contendo "Pagamento recebido") são descartadas e não geram transação |
+| Instituição | Fixo: "Nubank" |
+| Formato | Fixo: "Cartão de crédito" |
+| Empresa | ← coluna `title` |
+| Parcela | Vazio por padrão (arquivo não tem essa coluna). Se uma compra parcelada aparecer no futuro, a informação provavelmente virá embutida no texto de `title` — vai exigir ajuste na lógica de extração nesse momento |
+| Categoria | Recalculada pelo motor de categorização (arquivo não traz coluna de categoria). Não há categoria fixa para estorno — o usuário categoriza como preferir |
+| Valor | ← coluna `amount` |
+
+#### Fonte 3: Nubank (extrato conta corrente / Pix)
+
+Colunas do arquivo: `Data` · `Valor` · `Identificador` · `Descrição` — separador `,`
+
+| Campo do app | Origem / regra |
+| --- | --- |
+| Data | ← coluna `Data` |
+| Tipo | Regra: definido diretamente pelo sinal de `Valor` (negativo = "saída", positivo = "entrada"). Não se aplica a regra de Estorno aqui — o próprio dado já resolve |
+| Instituição | Fixo: "Nubank" |
+| Formato | Regra: inferido do texto de `Descrição` (contém "Pix" → "pix"; contém "boleto" → "boleto"; caso contrário, "outro") |
+| Empresa | ← coluna `Descrição` |
+| Parcela | Sempre vazio (Pix/boleto não parcela) |
+| Categoria | Recalculada pelo motor de categorização |
+| Valor | ← coluna `Valor` (valor absoluto — o sinal já foi usado para definir o Tipo) |
+| *(ignorado)* | `Identificador` — não usado no MVP |
+
+#### Regra geral de estorno/reembolso
+
+Aplica-se apenas às fontes 1 e 2 (faturas de cartão). Quando uma transação vem com valor negativo, ela é tratada como **Tipo = "entrada"**. Não existe uma categoria fixa/hard-coded para esse caso — a categoria continua sendo definida pelo motor normal de categorização (ou manualmente pelo usuário), da mesma forma que qualquer outra transação.
+
+#### Criação de categoria nova
+
+O seletor de categoria (na revisão do upload e na tela de Transações) inclui uma opção "+ Nova categoria" ao final da lista. Ao escolher essa opção, o usuário digita o nome da nova categoria, que passa a existir e ficar disponível em todos os seletores dali em diante.
