@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+/* MVP de uso pessoal: o app foi desenhado só para tema claro (as cores das
+   telas usam classes Tailwind fixas, tipo bg-neutral-50). Por isso aqui
+   fixamos fundo branco / texto escuro em vez de seguir o tema do sistema —
+   sem isso, o modo escuro do navegador deixava o texto quase invisível. */
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
