@@ -22,6 +22,10 @@ Nesse MVP, a idéia é que eu consiga subir a fatura em CSV para coletar esses d
 - Instituição: Por onde foi feita a transação (ex: Nubank, C6)
 - Formato: De qual forma foi feita a transação (ex: pix, cartão de crédito)
 - Empresa: De onde ou para onde foi o dinheiro
+    - A descrição bruta do arquivo (ex: "Zul 1 Cartao 27352u") não vira Empresa diretamente — ela passa por um motor de normalização (mesma lógica de aprendizado da Categoria: regra aprendida + sugestão por palavra-chave) que converte para um nome canônico (ex: "Azul"). Isso evita ter a mesma empresa duplicada com nomes diferentes
+    - A descrição bruta original é preservada e exibida como texto secundário abaixo do nome da Empresa, tanto na tela de revisão quanto na de Transações — serve de apoio para identificar/conferir a empresa
+    - Se o usuário editar a Empresa de uma transação, a Categoria é recalculada automaticamente: se a nova Empresa já tem uma categoria aprendida, ela é aplicada; se for uma Empresa nova, a Categoria fica em branco para categorização manual
+    - Importante: o motor de aprendizado de Categoria só deve criar ou aplicar regras quando a Empresa estiver definida. Se o usuário categorizar manualmente uma transação cuja Empresa ainda está em branco, essa escolha vale só para aquela transação — não deve criar uma regra salva, nem se propagar para outras transações que também estejam sem Empresa definida (elas não compartilham identidade só por estarem ambas em branco)
 - Parcela: Indicar se é uma compra parcelada ou não
     - Obs: No MVP, não precisamos conectar as compras parceladas entre si
 - Categoria: Qual a origem do gasto (Ex: alimentação, educação, saúde, lazer, transporte, etc)
@@ -72,7 +76,8 @@ Colunas do arquivo: `Data de Compra` · `Nome no Cartão` · `Final do Cartão` 
 Antes disso, linhas que representam pagamento da própria fatura (ex: descrição contendo "Pag fatura boleto") são descartadas e não geram transação |
 | Instituição | Fixo: "C6" (não vem do arquivo, vem da fonte escolhida) |
 | Formato | Fixo: "Cartão de crédito" (não vem do arquivo) |
-| Empresa | ← coluna `Descrição` |
+| Descrição (bruta) | ← coluna `Descrição` |
+| Empresa | Normalizada a partir da Descrição bruta pelo motor de normalização (regra aprendida + sugestão por palavra-chave) |
 | Parcela | ← coluna `Parcela` |
 | Categoria | Recalculada pelo motor de categorização (regras aprendidas + palavra-chave); a coluna `Categoria` do arquivo é ignorada. Não há categoria fixa para estorno — o usuário categoriza como preferir (ex: criando uma categoria "Estorno" própria, se quiser) |
 | Valor | ← coluna `Valor (em R$)` |
@@ -88,7 +93,8 @@ Colunas do arquivo: `date` · `title` · `amount` (valor com vírgula decimal, e
 | Tipo | Regra: "saída" por padrão; se `amount` for negativo → "entrada" (ver regra de Estorno abaixo). Antes disso, linhas que representam pagamento da própria fatura (ex: título contendo "Pagamento recebido") são descartadas e não geram transação |
 | Instituição | Fixo: "Nubank" |
 | Formato | Fixo: "Cartão de crédito" |
-| Empresa | ← coluna `title` |
+| Descrição (bruta) | ← coluna `title` |
+| Empresa | Normalizada a partir da Descrição bruta pelo motor de normalização (regra aprendida + sugestão por palavra-chave) |
 | Parcela | Vazio por padrão (arquivo não tem essa coluna). Se uma compra parcelada aparecer no futuro, a informação provavelmente virá embutida no texto de `title` — vai exigir ajuste na lógica de extração nesse momento |
 | Categoria | Recalculada pelo motor de categorização (arquivo não traz coluna de categoria). Não há categoria fixa para estorno — o usuário categoriza como preferir |
 | Valor | ← coluna `amount` |
@@ -103,7 +109,8 @@ Colunas do arquivo: `Data` · `Valor` · `Identificador` · `Descrição` — se
 | Tipo | Regra: definido diretamente pelo sinal de `Valor` (negativo = "saída", positivo = "entrada"). Não se aplica a regra de Estorno aqui — o próprio dado já resolve |
 | Instituição | Fixo: "Nubank" |
 | Formato | Regra: inferido do texto de `Descrição` (contém "Pix" → "pix"; contém "boleto" → "boleto"; caso contrário, "outro") |
-| Empresa | ← coluna `Descrição` |
+| Descrição (bruta) | ← coluna `Descrição` |
+| Empresa | Normalizada a partir da Descrição bruta pelo motor de normalização (regra aprendida + sugestão por palavra-chave) |
 | Parcela | Sempre vazio (Pix/boleto não parcela) |
 | Categoria | Recalculada pelo motor de categorização |
 | Valor | ← coluna `Valor` (valor absoluto — o sinal já foi usado para definir o Tipo) |
@@ -116,3 +123,7 @@ Aplica-se apenas às fontes 1 e 2 (faturas de cartão). Quando uma transação v
 #### Criação de categoria nova
 
 O seletor de categoria (na revisão do upload e na tela de Transações) inclui uma opção "+ Nova categoria" ao final da lista. Ao escolher essa opção, o usuário digita o nome da nova categoria, que passa a existir e ficar disponível em todos os seletores dali em diante.
+
+# Stakeholders
+
+Só eu vou usar isso, mas vou querer mostrar os resultados para minha esposa e discutirmos em cima das análises. Nesse primeiro momento, não precisamos nos preocupar com outra pessoa acessando isso.
