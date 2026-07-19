@@ -122,7 +122,11 @@ export async function confirmTransactionsAction(
       companyRules = companyResult.rules;
       transactions = companyResult.transactions;
     }
-    if (row.category.trim() !== '') {
+    // Sem empresa definida não há o que aprender nem aplicar
+    // retroativamente — a categoria escolhida vale só para esta linha (ela
+    // já é gravada com sua própria categoria mais abaixo, independente
+    // deste bloco).
+    if (row.category.trim() !== '' && row.company.trim() !== '') {
       const categoryResult = learnAndApplyRetroactively(row.company, row.category, categoryRules, transactions);
       categoryRules = categoryResult.rules;
       transactions = categoryResult.transactions;
@@ -159,16 +163,33 @@ export async function confirmTransactionsAction(
 // Edição de categoria feita depois, direto na tela de Transações. Segue a
 // mesma regra de aprendizado retroativo: corrige essa transação, aprende a
 // regra para a empresa, e aplica em todas as outras transações da mesma empresa.
+//
+// Exceção: se a transação editada não tem Empresa definida, não existe
+// "empresa" nenhuma para aprender ou para casar com outras transações — a
+// mudança de categoria vale só para esta transação específica (edição
+// direta por id), sem tocar em category-rules.json nem em nenhuma outra
+// transação (mesmo que também estejam sem empresa: não têm relação entre si
+// só por isso).
 export async function updateTransactionCategoryAction(
   transactionId: string,
   newCategory: string
 ): Promise<void> {
   const transactions = await readTransactions();
-  const rules = await readCategoryRules();
 
   const target = transactions.find((t) => t.id === transactionId);
   if (!target) return;
 
+  if (target.company.trim() === '') {
+    const updatedTransactions = transactions.map((t) =>
+      t.id === transactionId ? { ...t, category: newCategory } : t
+    );
+    await writeTransactions(updatedTransactions);
+    revalidatePath('/transacoes');
+    revalidatePath('/analises');
+    return;
+  }
+
+  const rules = await readCategoryRules();
   const result = learnAndApplyRetroactively(target.company, newCategory, rules, transactions);
 
   await writeCategoryRules(result.rules);

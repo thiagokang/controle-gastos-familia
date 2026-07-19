@@ -26,10 +26,15 @@ export default function ReviewTable({
   onCompanyChange,
   onCategoryChange,
 }: ReviewTableProps) {
+  // A rolagem acontece DENTRO desta caixa (max-h + overflow-auto), não na
+  // página inteira — é isso que permite o cabeçalho da tabela ficar "sticky"
+  // de verdade (gruda no topo desta caixa, não da página) e a barra de botões
+  // acima dela (fora da caixa) ficar sempre visível sem precisar de nenhum
+  // truque de posicionamento.
   return (
-    <div className="overflow-x-auto rounded-lg border border-neutral-200">
+    <div className="max-h-[65vh] overflow-auto rounded-lg border border-neutral-200">
       <table className="min-w-full divide-y divide-neutral-200 text-sm">
-        <thead className="bg-neutral-50 text-left text-xs font-medium uppercase text-neutral-500">
+        <thead className="sticky top-0 z-10 bg-neutral-50 text-left text-xs font-medium uppercase text-neutral-500">
           <tr>
             <th className="px-3 py-2">Data</th>
             <th className="px-3 py-2">Tipo</th>

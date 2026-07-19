@@ -19,6 +19,21 @@ function sortAlphabetically(values: string[]): string[] {
   return [...values].sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
 
+// Transações sem Empresa E sem Categoria definidas são as que mais precisam
+// de atenção do usuário — aparecem primeiro na revisão. Array.prototype.sort
+// é garantidamente estável, então dentro de cada grupo (pendente / já
+// resolvida) a ordem original do arquivo é preservada. Chamada uma única vez
+// quando o arquivo é lido (handleParse) — não reordena a cada edição, senão
+// uma linha "pularia" de lugar assim que o usuário terminasse de preenchê-la,
+// atrapalhando quem está revisando a lista de cima para baixo.
+function sortPendingFirst(rows: ReviewRow[]): ReviewRow[] {
+  return [...rows].sort((a, b) => {
+    const aIsPending = a.company === '' && a.category === '' ? 0 : 1;
+    const bIsPending = b.company === '' && b.category === '' ? 0 : 1;
+    return aIsPending - bIsPending;
+  });
+}
+
 interface UploadFlowProps {
   knownCompanies: string[];
   knownCategories: string[];
@@ -50,7 +65,7 @@ export default function UploadFlow({
       const formData = new FormData();
       formData.append('file', file);
       const result = await parseCsvAction(sourceId, formData);
-      setReviewRows(result.rows);
+      setReviewRows(sortPendingFirst(result.rows));
       setParseErrors(result.errors);
     } finally {
       setIsParsing(false);
@@ -155,7 +170,7 @@ export default function UploadFlow({
           type="file"
           accept=".csv,text/csv"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="mb-4 block text-sm"
+          className="mb-4 block w-full text-sm text-neutral-600 file:mr-4 file:cursor-pointer file:rounded-lg file:border-0 file:bg-neutral-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white file:transition-colors hover:file:bg-neutral-700"
         />
         <button
           onClick={handleParse}
@@ -185,9 +200,35 @@ export default function UploadFlow({
         </div>
       )}
 
-      <p className="mb-4 text-sm text-neutral-600">
-        {reviewRows.length} transação(ões) encontrada(s). Revise a empresa e a categoria antes de confirmar.
-      </p>
+      {/* A tabela rola internamente (veja o max-h + overflow-auto dentro de
+          ReviewTable), então esta barra — fora da área que rola — fica
+          sempre visível sozinha, sem precisar de position:sticky. O
+          cabeçalho da tabela (thead) é que é sticky, mas relativo à
+          rolagem interna da tabela, não à da página. */}
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <p className="text-sm text-neutral-600">
+          {reviewRows.length} transação(ões) encontrada(s). Revise a empresa e a categoria antes de confirmar.
+        </p>
+        <div className="flex shrink-0 gap-3">
+          <button
+            onClick={handleConfirm}
+            disabled={isConfirming}
+            className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+          >
+            {isConfirming ? 'Salvando...' : 'Confirmar categorização'}
+          </button>
+          <button
+            onClick={() => {
+              setReviewRows(null);
+              setFile(null);
+            }}
+            disabled={isConfirming}
+            className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
 
       <ReviewTable
         rows={reviewRows}
@@ -196,26 +237,6 @@ export default function UploadFlow({
         onCompanyChange={handleCompanyChange}
         onCategoryChange={handleCategoryChange}
       />
-
-      <div className="mt-6 flex gap-3">
-        <button
-          onClick={handleConfirm}
-          disabled={isConfirming}
-          className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-        >
-          {isConfirming ? 'Salvando...' : 'Confirmar categorização'}
-        </button>
-        <button
-          onClick={() => {
-            setReviewRows(null);
-            setFile(null);
-          }}
-          disabled={isConfirming}
-          className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700"
-        >
-          Cancelar
-        </button>
-      </div>
     </div>
   );
 }

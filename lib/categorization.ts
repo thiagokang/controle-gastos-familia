@@ -38,6 +38,12 @@ export function suggestCategory(
 ): { category: string; source: SuggestionSource } {
   const normalizedCompany = normalizeCompanyName(company);
 
+  // Empresa em branco não é uma chave válida — não faz sentido procurar
+  // regra aprendida nem palavra-chave para "nenhuma empresa".
+  if (normalizedCompany === '') {
+    return { category: '', source: 'sem-sugestao' };
+  }
+
   // Prioridade 1: categoria já aprendida para essa empresa.
   const learnedCategory = learnedRules[normalizedCompany];
   if (learnedCategory) {
@@ -64,13 +70,24 @@ export function suggestCategory(
 // palavra-chave nesse caso específico (evita aplicar uma categoria errada
 // via um match coincidente de palavra-chave logo depois de uma correção manual).
 export function getLearnedCategory(company: string, rules: CategoryRules): string | null {
-  return rules[normalizeCompanyName(company)] ?? null;
+  const normalizedCompany = normalizeCompanyName(company);
+  if (normalizedCompany === '') return null;
+  return rules[normalizedCompany] ?? null;
 }
 
 // Aplica a categoria escolhida para uma empresa a TODAS as transações dessa
 // empresa (correção retroativa) e atualiza a regra aprendida correspondente.
 // Retorna as listas atualizadas (imutável — não modifica os argumentos originais)
 // e quantas transações além da atual foram alteradas, só para feedback ao usuário.
+//
+// IMPORTANTE: empresa em branco nunca é uma chave válida de aprendizado. Sem
+// essa guarda, categorizar manualmente UMA transação sem empresa definida
+// criaria uma regra "'' -> categoria" que vazaria essa mesma categoria para
+// TODAS as outras transações também sem empresa — mesmo sendo de empresas
+// reais diferentes entre si, que só coincidem em não ter empresa nenhuma.
+// Por isso esta função é um no-op nesse caso: quem chama continua
+// responsável por aplicar a categoria só na transação específica que o
+// usuário editou (ver app/actions.ts).
 export function learnAndApplyRetroactively(
   company: string,
   newCategory: string,
@@ -78,6 +95,10 @@ export function learnAndApplyRetroactively(
   currentTransactions: Transaction[]
 ): { rules: CategoryRules; transactions: Transaction[]; retroactiveCount: number } {
   const normalizedCompany = normalizeCompanyName(company);
+
+  if (normalizedCompany === '') {
+    return { rules: currentRules, transactions: currentTransactions, retroactiveCount: 0 };
+  }
 
   const updatedRules: CategoryRules = {
     ...currentRules,
