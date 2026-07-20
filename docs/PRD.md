@@ -38,6 +38,10 @@ Nesse MVP, a idéia é que eu consiga subir a fatura em CSV para coletar esses d
 
 Vamos começar com um resumo dos gastos feitos naquele mês, onde cada categoria deve ser representada por uma barra e o gráfico deve ser ordenado de forma decrescente.
 
+**Regra de cálculo:** para cada categoria, o valor exibido é o **saldo líquido** = soma das saídas − soma das entradas daquela categoria, no mês. Isso cobre casos como um estorno cancelando um gasto anterior (ex: anuidade do cartão estornada) — desde que a entrada seja categorizada na mesma categoria do gasto original, o saldo líquido reflete corretamente que aquele gasto não se concretizou.
+
+Só categorias com saldo líquido **positivo** aparecem no gráfico (categorias com saldo zero ou negativo — como uma entrada de dinheiro sem gasto correspondente no mês, ex: restituição de Imposto de Renda categorizada como "Receita" — não são exibidas, já que o resumo é sobre gastos, não sobre entradas de dinheiro).
+
 ### Formato
 
 Vamos fazer tudo isso num formato web app
@@ -106,9 +110,10 @@ Colunas do arquivo: `Data` · `Valor` · `Identificador` · `Descrição` — se
 | Campo do app | Origem / regra |
 | --- | --- |
 | Data | ← coluna `Data` |
-| Tipo | Regra: definido diretamente pelo sinal de `Valor` (negativo = "saída", positivo = "entrada"). Não se aplica a regra de Estorno aqui — o próprio dado já resolve |
+| Tipo | Regra: definido diretamente pelo sinal de `Valor` (negativo = "saída", positivo = "entrada"). Não se aplica a regra de Estorno aqui — o próprio dado já resolve
+Antes disso, linhas que representam o pagamento de uma fatura de cartão feito a partir dessa conta (ex: Descrição contendo "Pagamento de fatura" ou "Pagamento de boleto efetuado - Banco C6 S.A.") são descartadas e não geram transação — evita contar como gasto algo que já foi registrado na própria fatura do cartão (Fontes 1 e 2) |
 | Instituição | Fixo: "Nubank" |
-| Formato | Regra: inferido do texto de `Descrição` (contém "Pix" → "pix"; contém "boleto" → "boleto"; caso contrário, "outro") |
+| Formato | Regra: inferido do texto de `Descrição` (contém "Pix" → "pix"; contém "boleto" → "boleto"; contém "débito" → "cartão de débito"; caso contrário, "outro") |
 | Descrição (bruta) | ← coluna `Descrição` |
 | Empresa | Normalizada a partir da Descrição bruta pelo motor de normalização (regra aprendida + sugestão por palavra-chave) |
 | Parcela | Sempre vazio (Pix/boleto não parcela) |

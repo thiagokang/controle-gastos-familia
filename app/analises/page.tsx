@@ -18,19 +18,25 @@ export default async function AnalisesPage({ searchParams }: AnalisesPageProps) 
   const mostRecentMonth = monthKeysWithData[monthKeysWithData.length - 1] ?? currentMonthKey();
   const selectedMonth = month ?? mostRecentMonth;
 
-  // Só "saída" entra no resumo de gastos — "entrada" não tem uma categoria
-  // de gasto que faça sentido somar aqui.
-  const monthExpenses = allTransactions.filter(
-    (t) => getMonthKey(t.date) === selectedMonth && t.type === 'saida'
-  );
+  const monthTransactions = allTransactions.filter((t) => getMonthKey(t.date) === selectedMonth);
 
-  const totalsByCategory = new Map<string, number>();
-  for (const transaction of monthExpenses) {
+  // Saldo líquido por categoria = soma das saídas − soma das entradas.
+  // Isso cobre o caso de um estorno cancelar um gasto anterior (ex: uma
+  // anuidade de cartão estornada): se a entrada do estorno for categorizada
+  // na mesma categoria do gasto original, o saldo líquido reflete
+  // corretamente que aquele gasto não se concretizou.
+  const netByCategory = new Map<string, number>();
+  for (const transaction of monthTransactions) {
     const categoryLabel = transaction.category || 'Sem categoria';
-    totalsByCategory.set(categoryLabel, (totalsByCategory.get(categoryLabel) ?? 0) + transaction.value);
+    const delta = transaction.type === 'saida' ? transaction.value : -transaction.value;
+    netByCategory.set(categoryLabel, (netByCategory.get(categoryLabel) ?? 0) + delta);
   }
 
-  const chartData = Array.from(totalsByCategory.entries())
+  // Só categorias com saldo positivo aparecem: o resumo é sobre gastos, não
+  // sobre entradas de dinheiro — uma categoria com saldo zero ou negativo
+  // (ex: uma entrada sem gasto correspondente no mês) não é um gasto.
+  const chartData = Array.from(netByCategory.entries())
+    .filter(([, total]) => total > 0)
     .map(([category, total]) => ({ category, total }))
     .sort((a, b) => b.total - a.total);
 

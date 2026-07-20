@@ -84,9 +84,17 @@ export default function TransactionsTable({
         Editar a Empresa ou a Categoria aqui atualiza retroativamente as demais transações relacionadas
         (mesma descrição bruta, para Empresa; mesma empresa, para Categoria).
       </p>
-      <div className={`overflow-x-auto rounded-lg border border-neutral-200 transition-opacity ${isPending ? 'opacity-60' : ''}`}>
+      {/* A rolagem acontece DENTRO desta caixa (max-h + overflow-auto), não na
+          página inteira — é isso que faz o cabeçalho da tabela (thead)
+          conseguir ficar "sticky" de verdade. Um wrapper só com
+          overflow-x-auto (sem max-h) não funciona: o navegador não cria um
+          contêiner de rolagem vertical de verdade, então o sticky não tem
+          em relação a quê grudar. */}
+      <div
+        className={`max-h-[70vh] overflow-auto rounded-lg border border-neutral-200 transition-opacity ${isPending ? 'opacity-60' : ''}`}
+      >
         <table className="min-w-full divide-y divide-neutral-200 text-sm">
-          <thead className="bg-neutral-50 text-left text-xs font-medium uppercase text-neutral-500">
+          <thead className="sticky top-0 z-10 bg-neutral-50 text-left text-xs font-medium uppercase text-neutral-500">
             <tr>
               <th className="px-3 py-2">Data</th>
               <th className="px-3 py-2">Tipo</th>
