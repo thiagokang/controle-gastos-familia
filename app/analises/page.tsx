@@ -1,5 +1,5 @@
 import { readTransactions } from '@/lib/storage';
-import { currentMonthKey, getMonthKey } from '@/lib/dateUtils';
+import { currentMonthKey, getGroupingMonthKey } from '@/lib/dateUtils';
 import MonthNavigator from '@/components/MonthNavigator';
 import MonthlySummaryChart from '@/components/MonthlySummaryChart';
 
@@ -14,11 +14,14 @@ export default async function AnalisesPage({ searchParams }: AnalisesPageProps) 
   const { month } = await searchParams;
   const allTransactions = await readTransactions();
 
-  const monthKeysWithData = Array.from(new Set(allTransactions.map((t) => getMonthKey(t.date)))).sort();
+  const monthKeysWithData = Array.from(new Set(allTransactions.map(getGroupingMonthKey))).sort();
   const mostRecentMonth = monthKeysWithData[monthKeysWithData.length - 1] ?? currentMonthKey();
   const selectedMonth = month ?? mostRecentMonth;
 
-  const monthTransactions = allTransactions.filter((t) => getMonthKey(t.date) === selectedMonth);
+  // Mesmo agrupamento por "Mês de referência" usado na tela de Transações
+  // (ver lib/dateUtils.ts) — sem isso, o Resumo mensal também sofreria do
+  // mesmo problema de parcelas caindo todas no mês da compra original.
+  const monthTransactions = allTransactions.filter((t) => getGroupingMonthKey(t) === selectedMonth);
 
   // Saldo líquido por categoria = soma das saídas − soma das entradas.
   // Isso cobre o caso de um estorno cancelar um gasto anterior (ex: uma

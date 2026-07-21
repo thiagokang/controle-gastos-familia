@@ -14,7 +14,18 @@ export type TransactionType = 'entrada' | 'saida';
 // empresa e para sugerir categoria — nunca o texto bruto.
 export interface Transaction {
   id: string;
-  date: string; // formato ISO "AAAA-MM-DD", facilita ordenação e agrupamento por mês
+  date: string; // Data de Compra, formato ISO "AAAA-MM-DD" — sempre exibida como está, nunca usada sozinha para agrupar por mês (ver referenceMonth)
+  // A qual fatura/mês esta transação pertence, para fins de agrupamento por
+  // página na tela de Transações e no Resumo mensal. "AAAA-MM" para
+  // transações de fatura de cartão (Fontes 1 e 2 — inferido do nome do
+  // arquivo enviado, já que o CSV não traz essa informação em coluna
+  // nenhuma). null para a Fonte 3 (extrato/Pix), que não tem conceito de
+  // fatura fechada — nesse caso o agrupamento usa a própria "date" (ver
+  // lib/dateUtils.ts, getGroupingMonthKey). É por causa desse campo que
+  // parcelas de uma mesma compra — que sempre têm a mesma Data de Compra,
+  // mas são cobradas em faturas/meses diferentes — aparecem cada uma na
+  // página do mês certo, em vez de todas amontoadas no mês da compra original.
+  referenceMonth: string | null;
   type: TransactionType;
   institution: string;
   format: string;
@@ -39,6 +50,7 @@ export type SuggestionSource = 'aprendida' | 'palavra-chave' | 'sem-sugestao';
 export interface ReviewRow {
   reviewId: string;
   date: string;
+  referenceMonth: string | null;
   type: TransactionType;
   institution: string;
   format: string;

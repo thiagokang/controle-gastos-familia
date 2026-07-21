@@ -42,6 +42,32 @@ export function parseFlexibleDate(rawDate: string): string | null {
   return null;
 }
 
+// Extrai o mês/ano "AAAA-MM" embutido no NOME do arquivo (não no conteúdo
+// do CSV) — usado para inferir o "Mês de referência" das faturas de cartão
+// (Fontes 1 e 2, ver app/actions.ts), já que essas faturas não trazem em
+// nenhuma coluna a qual fatura/mês elas pertencem. Aceita variações comuns:
+// "2026-07-10", "2026_07_10", "20260710" (com dia) ou "2026-07"/"2026_07"
+// (sem dia, mas exige separador aqui para não confundir com outro número
+// qualquer no nome do arquivo). O ano é restrito a "20xx" de propósito —
+// sem essa restrição, um ID/protocolo qualquer no nome do arquivo (ex:
+// "NU_68548474_...") pode por coincidência parecer um "AAAA-MM" válido.
+// Devolve null se nada bater — quem chama decide como reagir (ver parseCsvAction).
+export function extractMonthKeyFromFilename(filename: string): string | null {
+  const withDay = filename.match(/(20\d{2})[-_]?(\d{2})[-_]?(\d{2})(?!\d)/);
+  if (withDay) {
+    const [, year, month] = withDay;
+    if (Number(month) >= 1 && Number(month) <= 12) return `${year}-${month}`;
+  }
+
+  const withoutDay = filename.match(/(20\d{2})[-_](\d{2})(?!\d)/);
+  if (withoutDay) {
+    const [, year, month] = withoutDay;
+    if (Number(month) >= 1 && Number(month) <= 12) return `${year}-${month}`;
+  }
+
+  return null;
+}
+
 // Aceita valores com separador decimal "," ou "." (com ou sem separador de
 // milhar) e sinal opcional (ex: "-410.00", "1.234,56", "150,00"). Ao
 // contrário de um parser de moeda genérico, mantém o sinal — cada fonte

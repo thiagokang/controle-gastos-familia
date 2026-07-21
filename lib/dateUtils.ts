@@ -14,6 +14,18 @@ export function getMonthKey(isoDate: string): string {
   return isoDate.slice(0, 7);
 }
 
+// Mês usado para AGRUPAR/PAGINAR uma transação por fatura (tela de
+// Transações e Resumo mensal). Para transações com "Mês de referência"
+// definido (faturas de cartão — Fontes 1 e 2, ver lib/types.ts), usa esse
+// campo; senão (Fonte 3, extrato/Pix, que não tem conceito de fatura
+// fechada) cai para o mês da própria Data. Sem isso, parcelas de uma mesma
+// compra — que sempre têm a mesma Data de Compra — ficariam todas
+// agrupadas no mês da compra original, em vez de cada uma na fatura em que
+// de fato foi cobrada.
+export function getGroupingMonthKey(transaction: { date: string; referenceMonth: string | null }): string {
+  return transaction.referenceMonth ?? getMonthKey(transaction.date);
+}
+
 // Transforma "2026-07" em "Julho 2026", para exibir no navegador de meses.
 export function formatMonthLabel(monthKey: string): string {
   const [year, month] = monthKey.split('-').map(Number);

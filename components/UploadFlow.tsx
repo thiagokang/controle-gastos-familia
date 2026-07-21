@@ -123,8 +123,9 @@ export default function UploadFlow({
     setIsConfirming(true);
     try {
       await confirmTransactionsAction(
-        reviewRows.map(({ date, type, institution, format, description, company, installment, category, value }) => ({
+        reviewRows.map(({ date, referenceMonth, type, institution, format, description, company, installment, category, value }) => ({
           date,
+          referenceMonth,
           type,
           institution,
           format,

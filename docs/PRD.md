@@ -18,6 +18,7 @@ Considerar todas as nossas transações (entrada e saída) de diferentes canais 
 Nesse MVP, a idéia é que eu consiga subir a fatura em CSV para coletar esses dados mais facilmente, para começar a registrar os gastos com os seguintes dados:
 
 - Data: seria a data da transação
+- Mês de referência: a qual fatura/mês essa transação pertence (diferente da Data — uma parcela pode ter Data de Compra em um mês e Mês de referência em outro, já que ela aparece em faturas diferentes ao longo do parcelamento). Aplicável só às fontes de fatura de cartão (Fontes 1 e 2); a Fonte 3 (extrato) não tem esse conceito, já que não existe fechamento de fatura ali — usa a própria Data para agrupar por mês
 - Tipo: Entrada ou saída de dinheiro
 - Instituição: Por onde foi feita a transação (ex: Nubank, C6)
 - Formato: De qual forma foi feita a transação (ex: pix, cartão de crédito)
@@ -61,7 +62,7 @@ Um botão de upload de fatura fica sempre acessível, independente da seção on
 
 **Fluxo de upload:** (1) o usuário seleciona qual é a fonte do arquivo (ex: C6 (cartão de crédito), Nubank (cartão de crédito), Nubank (extrato conta corrente / Pix)) — isso define qual mapeamento de colunas será usado; (2) faz o upload do CSV; (3) passa pela tela de revisão/categorização (sugestões + edição manual); (4) confirma. As transações só aparecem na aba Transações depois dessa confirmação.
 
-**Tela de Transações:** organizada por fatura (cada fatura/mês é uma página, navegável com setas). Inclui filtro por categoria e por mês. Busca livre por texto fica fora do MVP (backlog). A categoria de qualquer transação também pode ser editada diretamente aqui (não só na tela de revisão do upload), com o mesmo comportamento retroativo (atualiza todas as transações passadas da mesma empresa).
+**Tela de Transações:** organizada por fatura (cada fatura/mês é uma página, navegável com setas). Para transações vindas das Fontes 1 e 2 (faturas de cartão), o agrupamento por página usa o **Mês de referência** (a fatura em que a transação apareceu), não a Data de Compra — isso evita que parcelas de uma mesma compra, que têm a mesma Data de Compra mas aparecem em faturas diferentes, caiam todas na mesma página. Para transações da Fonte 3 (extrato), o agrupamento usa a própria Data, já que não há conceito de fatura ali. Inclui filtro por categoria e por mês. Busca livre por texto fica fora do MVP (backlog). A categoria de qualquer transação também pode ser editada diretamente aqui (não só na tela de revisão do upload), com o mesmo comportamento retroativo (atualiza todas as transações passadas da mesma empresa).
 
 ### Fontes de dados e regras de importação (adaptador por fonte)
 
@@ -76,6 +77,7 @@ Colunas do arquivo: `Data de Compra` · `Nome no Cartão` · `Final do Cartão` 
 | Campo do app | Origem / regra |
 | --- | --- |
 | Data | ← coluna `Data de Compra` |
+| Mês de referência | Inferido do nome do arquivo (o usuário garante que o mês/ano da fatura esteja identificável no nome, ex: "Fatura_2026-07-10.csv" → referência julho/2026) |
 | Tipo | Regra: "saída" por padrão; se `Valor (em R$)` for negativo → "entrada" (ver regra de Estorno abaixo)
 Antes disso, linhas que representam pagamento da própria fatura (ex: descrição contendo "Pag fatura boleto") são descartadas e não geram transação |
 | Instituição | Fixo: "C6" (não vem do arquivo, vem da fonte escolhida) |
@@ -94,6 +96,7 @@ Colunas do arquivo: `date` · `title` · `amount` (valor com vírgula decimal, e
 | Campo do app | Origem / regra |
 | --- | --- |
 | Data | ← coluna `date` |
+| Mês de referência | Inferido do nome do arquivo (mesmo mecanismo da Fonte 1) |
 | Tipo | Regra: "saída" por padrão; se `amount` for negativo → "entrada" (ver regra de Estorno abaixo). Antes disso, linhas que representam pagamento da própria fatura (ex: título contendo "Pagamento recebido") são descartadas e não geram transação |
 | Instituição | Fixo: "Nubank" |
 | Formato | Fixo: "Cartão de crédito" |

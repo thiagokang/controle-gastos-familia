@@ -19,6 +19,7 @@ import { revalidatePath } from 'next/cache';
 import { randomUUID } from 'crypto';
 import { CSV_SOURCES } from '@/lib/sources';
 import type { SourceId } from '@/lib/sources';
+import { extractMonthKeyFromFilename } from '@/lib/csvHelpers';
 import { getLearnedCategory, learnAndApplyRetroactively, suggestCategory } from '@/lib/categorization';
 import { learnAndApplyCompanyRetroactively, normalizeDescriptionKey, suggestCompany } from '@/lib/companyNormalization';
 import {
@@ -50,6 +51,24 @@ export async function parseCsvAction(
     return { rows: [], errors: ['Fonte do arquivo não reconhecida.'] };
   }
 
+  // Faturas de cartão (Fontes 1 e 2) não trazem, em nenhuma coluna do CSV,
+  // a qual fatura/mês elas pertencem — isso só existe no nome do arquivo
+  // que o usuário sobe (ex: "Fatura_2026-07-10.csv" -> julho/2026). A Fonte
+  // 3 (extrato/Pix) não tem esse conceito: cada transação usa a própria
+  // Data para agrupamento (ver getGroupingMonthKey em lib/dateUtils.ts).
+  let referenceMonth: string | null = null;
+  if (sourceId === 'c6-credito' || sourceId === 'nubank-credito') {
+    referenceMonth = extractMonthKeyFromFilename(file.name);
+    if (!referenceMonth) {
+      return {
+        rows: [],
+        errors: [
+          `Não foi possível identificar o mês da fatura no nome do arquivo "${file.name}". Renomeie o arquivo incluindo o ano e o mês (ex: "Fatura_2026-07-10.csv") e envie novamente.`,
+        ],
+      };
+    }
+  }
+
   const csvText = await file.text();
   const { rows: parsedRows, errors } = source.parse(csvText);
 
@@ -65,6 +84,7 @@ export async function parseCsvAction(
     return {
       reviewId: randomUUID(),
       ...row,
+      referenceMonth,
       company,
       companySource,
       category,
@@ -87,6 +107,7 @@ export async function getLearnedCategoryForCompanyAction(company: string): Promi
 
 interface ConfirmableRow {
   date: string;
+  referenceMonth: string | null;
   type: TransactionType;
   institution: string;
   format: string;
@@ -135,6 +156,7 @@ export async function confirmTransactionsAction(
     newTransactions.push({
       id: randomUUID(),
       date: row.date,
+      referenceMonth: row.referenceMonth,
       type: row.type,
       institution: row.institution,
       format: row.format,
