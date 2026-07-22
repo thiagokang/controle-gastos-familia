@@ -75,12 +75,12 @@ export default function TransactionsTable({
   }
 
   if (transactions.length === 0) {
-    return <p className="text-sm text-neutral-500">Nenhuma transação neste mês.</p>;
+    return <p className="text-sm text-neutral-500 dark:text-neutral-400">Nenhuma transação neste mês.</p>;
   }
 
   return (
     <div>
-      <p className="mb-2 text-xs text-neutral-500">
+      <p className="mb-2 text-xs text-neutral-500 dark:text-neutral-400">
         Editar a Empresa ou a Categoria aqui atualiza retroativamente as demais transações relacionadas
         (mesma descrição bruta, para Empresa; mesma empresa, para Categoria).
       </p>
@@ -91,10 +91,10 @@ export default function TransactionsTable({
           contêiner de rolagem vertical de verdade, então o sticky não tem
           em relação a quê grudar. */}
       <div
-        className={`max-h-[70vh] overflow-auto rounded-lg border border-neutral-200 transition-opacity ${isPending ? 'opacity-60' : ''}`}
+        className={`max-h-[70vh] overflow-auto rounded-lg border border-neutral-200 transition-opacity dark:border-neutral-800 ${isPending ? 'opacity-60' : ''}`}
       >
-        <table className="min-w-full divide-y divide-neutral-200 text-sm">
-          <thead className="sticky top-0 z-10 bg-neutral-50 text-left text-xs font-medium uppercase text-neutral-500">
+        <table className="min-w-full divide-y divide-neutral-200 text-sm dark:divide-neutral-800">
+          <thead className="sticky top-0 z-10 bg-neutral-50 text-left text-xs font-medium uppercase text-neutral-500 dark:bg-neutral-900 dark:text-neutral-400">
             <tr>
               <th className="px-3 py-2">Data</th>
               <th className="px-3 py-2">Tipo</th>
@@ -106,7 +106,7 @@ export default function TransactionsTable({
               <th className="px-3 py-2">Categoria</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-neutral-100">
+          <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
             {transactions.map((transaction) => (
               <tr key={transaction.id}>
                 <td className="whitespace-nowrap px-3 py-2">{formatDateBR(transaction.date)}</td>
@@ -122,7 +122,7 @@ export default function TransactionsTable({
                     newOptionPlaceholder="Nome da empresa"
                   />
                   <div
-                    className="mt-1 max-w-[220px] truncate text-xs text-neutral-400"
+                    className="mt-1 max-w-[220px] truncate text-xs text-neutral-400 dark:text-neutral-500"
                     title={transaction.description}
                   >
                     {transaction.description}

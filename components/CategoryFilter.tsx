@@ -23,7 +23,7 @@ export default function CategoryFilter({ categories, selectedCategory, monthKey 
         if (e.target.value !== 'all') params.set('category', e.target.value);
         router.push(`/transacoes?${params.toString()}`);
       }}
-      className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
+      className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
     >
       <option value="all">Todas as categorias</option>
       <option value="none">Sem categoria</option>

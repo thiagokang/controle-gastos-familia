@@ -21,17 +21,17 @@ export default function MonthNavigator({ basePath, monthKey, extraParams = {} }:
     <div className="flex items-center gap-4">
       <Link
         href={buildHref(shiftMonthKey(monthKey, -1))}
-        className="rounded-md px-2 py-1 text-neutral-600 transition-colors hover:bg-neutral-100"
+        className="rounded-md px-2 py-1 text-neutral-600 transition-colors hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
         aria-label="Mês anterior"
       >
         ←
       </Link>
-      <span className="min-w-[10rem] text-center text-base font-medium text-neutral-900">
+      <span className="min-w-[10rem] text-center text-base font-medium text-neutral-900 dark:text-neutral-100">
         {formatMonthLabel(monthKey)}
       </span>
       <Link
         href={buildHref(shiftMonthKey(monthKey, 1))}
-        className="rounded-md px-2 py-1 text-neutral-600 transition-colors hover:bg-neutral-100"
+        className="rounded-md px-2 py-1 text-neutral-600 transition-colors hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
         aria-label="Próximo mês"
       >
         →

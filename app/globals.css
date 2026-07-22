@@ -1,13 +1,20 @@
 @import "tailwindcss";
 
-/* MVP de uso pessoal: o app foi desenhado só para tema claro (as cores das
-   telas usam classes Tailwind fixas, tipo bg-neutral-50). Por isso aqui
-   fixamos fundo branco / texto escuro em vez de seguir o tema do sistema —
-   sem isso, o modo escuro do navegador deixava o texto quase invisível. */
+/* Ativa a variante `dark:` do Tailwind baseada na classe `.dark` em algum
+   ancestral (tipicamente <html class="dark">), controlada pelo
+   ThemeProvider. Tailwind v4 não usa mais tailwind.config.js para isso. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
   color-scheme: light;
+}
+
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  color-scheme: dark;
 }
 
 @theme inline {

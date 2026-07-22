@@ -45,11 +45,11 @@ export default async function AnalisesPage({ searchParams }: AnalisesPageProps) 
 
   return (
     <div>
-      <h1 className="mb-6 text-xl font-semibold text-neutral-900">Análises</h1>
+      <h1 className="mb-6 text-xl font-semibold text-neutral-900 dark:text-neutral-100">Análises</h1>
 
       <section>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-medium uppercase tracking-wide text-neutral-500">
+          <h2 className="text-sm font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
             Resumo mensal
           </h2>
           <MonthNavigator basePath="/analises" monthKey={selectedMonth} />

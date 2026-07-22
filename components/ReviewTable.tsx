@@ -32,9 +32,9 @@ export default function ReviewTable({
   // acima dela (fora da caixa) ficar sempre visível sem precisar de nenhum
   // truque de posicionamento.
   return (
-    <div className="max-h-[65vh] overflow-auto rounded-lg border border-neutral-200">
-      <table className="min-w-full divide-y divide-neutral-200 text-sm">
-        <thead className="sticky top-0 z-10 bg-neutral-50 text-left text-xs font-medium uppercase text-neutral-500">
+    <div className="max-h-[65vh] overflow-auto rounded-lg border border-neutral-200 dark:border-neutral-800">
+      <table className="min-w-full divide-y divide-neutral-200 text-sm dark:divide-neutral-800">
+        <thead className="sticky top-0 z-10 bg-neutral-50 text-left text-xs font-medium uppercase text-neutral-500 dark:bg-neutral-900 dark:text-neutral-400">
           <tr>
             <th className="px-3 py-2">Data</th>
             <th className="px-3 py-2">Tipo</th>
@@ -46,7 +46,7 @@ export default function ReviewTable({
             <th className="px-3 py-2">Categoria</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-neutral-100">
+        <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
           {rows.map((row) => (
             <tr key={row.reviewId}>
               <td className="whitespace-nowrap px-3 py-2">{formatDateBR(row.date)}</td>
@@ -64,7 +64,7 @@ export default function ReviewTable({
                   />
                   <SuggestionBadge source={row.companySource} />
                 </div>
-                <div className="mt-1 max-w-[220px] truncate text-xs text-neutral-400" title={row.description}>
+                <div className="mt-1 max-w-[220px] truncate text-xs text-neutral-400 dark:text-neutral-500" title={row.description}>
                   {row.description}
                 </div>
               </td>

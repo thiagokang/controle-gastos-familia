@@ -146,13 +146,13 @@ export default function UploadFlow({
   if (!reviewRows) {
     return (
       <div className="max-w-xl">
-        <label className="mb-1 block text-sm font-medium text-neutral-700">
+        <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
           Fonte do arquivo
         </label>
         <select
           value={sourceId}
           onChange={(e) => setSourceId(e.target.value as SourceId)}
-          className="mb-4 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+          className="mb-4 block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
         >
           <option value="" disabled>
             Selecione de onde veio o arquivo...
@@ -164,25 +164,25 @@ export default function UploadFlow({
           ))}
         </select>
 
-        <p className="mb-4 text-sm text-neutral-600">
+        <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
           Selecione o arquivo CSV exportado dessa fonte.
         </p>
         <input
           type="file"
           accept=".csv,text/csv"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="mb-4 block w-full text-sm text-neutral-600 file:mr-4 file:cursor-pointer file:rounded-lg file:border-0 file:bg-neutral-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white file:transition-colors hover:file:bg-neutral-700"
+          className="mb-4 block w-full text-sm text-neutral-600 file:mr-4 file:cursor-pointer file:rounded-lg file:border-0 file:bg-neutral-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white file:transition-colors hover:file:bg-neutral-700 dark:text-neutral-400 dark:file:bg-neutral-100 dark:file:text-neutral-900 dark:hover:file:bg-neutral-300"
         />
         <button
           onClick={handleParse}
           disabled={!file || !sourceId || isParsing}
-          className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+          className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-neutral-100 dark:text-neutral-900"
         >
           {isParsing ? 'Lendo arquivo...' : 'Enviar e revisar'}
         </button>
 
         {parseErrors.length > 0 && (
-          <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-red-600">
+          <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-red-600 dark:text-red-400">
             {parseErrors.map((error) => (
               <li key={error}>{error}</li>
             ))}
@@ -196,7 +196,7 @@ export default function UploadFlow({
   return (
     <div>
       {parseErrors.length > 0 && (
-        <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+        <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
           {parseErrors.length} linha(s) do arquivo não puderam ser lidas e foram ignoradas.
         </div>
       )}
@@ -207,14 +207,14 @@ export default function UploadFlow({
           cabeçalho da tabela (thead) é que é sticky, mas relativo à
           rolagem interna da tabela, não à da página. */}
       <div className="mb-4 flex items-center justify-between gap-3">
-        <p className="text-sm text-neutral-600">
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">
           {reviewRows.length} transação(ões) encontrada(s). Revise a empresa e a categoria antes de confirmar.
         </p>
         <div className="flex shrink-0 gap-3">
           <button
             onClick={handleConfirm}
             disabled={isConfirming}
-            className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+            className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-neutral-100 dark:text-neutral-900"
           >
             {isConfirming ? 'Salvando...' : 'Confirmar categorização'}
           </button>
@@ -224,7 +224,7 @@ export default function UploadFlow({
               setFile(null);
             }}
             disabled={isConfirming}
-            className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700"
+            className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 dark:border-neutral-700 dark:text-neutral-300"
           >
             Cancelar
           </button>
