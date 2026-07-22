@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 
 interface CategoryFilterProps {
   categories: string[];
-  selectedCategory: string; // 'all' ou o nome de uma categoria
+  selectedCategory: string; // 'all', 'none' (sem categoria) ou o nome de uma categoria
   monthKey: string;
 }
 
@@ -26,6 +26,7 @@ export default function CategoryFilter({ categories, selectedCategory, monthKey 
       className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
     >
       <option value="all">Todas as categorias</option>
+      <option value="none">Sem categoria</option>
       {categories.map((category) => (
         <option key={category} value={category}>
           {category}

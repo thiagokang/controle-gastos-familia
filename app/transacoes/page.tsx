@@ -31,7 +31,11 @@ export default async function TransacoesPage({ searchParams }: TransacoesPagePro
 
   const visibleTransactions = allTransactions
     .filter((t) => getGroupingMonthKey(t) === selectedMonth)
-    .filter((t) => selectedCategory === 'all' || t.category === selectedCategory)
+    .filter((t) => {
+      if (selectedCategory === 'all') return true;
+      if (selectedCategory === 'none') return t.category === '';
+      return t.category === selectedCategory;
+    })
     .sort((a, b) => b.date.localeCompare(a.date));
 
   return (
