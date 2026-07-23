@@ -43,6 +43,11 @@ export default async function AnalisesPage({ searchParams }: AnalisesPageProps) 
     .map(([category, total]) => ({ category, total }))
     .sort((a, b) => b.total - a.total);
 
+  // Total do mês = soma de todos os saldos líquidos positivos exibidos no
+  // gráfico (ou seja, o total gasto no mês, somando todas as categorias
+  // mostradas).
+  const monthTotal = chartData.reduce((total, { total: categoryTotal }) => total + categoryTotal, 0);
+
   return (
     <div>
       <h1 className="mb-6 text-xl font-semibold text-neutral-900 dark:text-neutral-100">Análises</h1>
@@ -54,6 +59,13 @@ export default async function AnalisesPage({ searchParams }: AnalisesPageProps) 
           </h2>
           <MonthNavigator basePath="/analises" monthKey={selectedMonth} />
         </div>
+
+        <p className="mb-4 text-sm text-neutral-500 dark:text-neutral-400">
+          Total do mês:{' '}
+          <span className="font-medium text-neutral-900 dark:text-neutral-100">
+            {monthTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+          </span>
+        </p>
 
         <MonthlySummaryChart data={chartData} />
       </section>

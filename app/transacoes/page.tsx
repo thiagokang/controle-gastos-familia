@@ -29,8 +29,9 @@ export default async function TransacoesPage({ searchParams }: TransacoesPagePro
     new Set(allTransactions.map((t) => t.company).filter((c) => c !== ''))
   ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
-  const visibleTransactions = allTransactions
-    .filter((t) => getGroupingMonthKey(t) === selectedMonth)
+  const monthTransactions = allTransactions.filter((t) => getGroupingMonthKey(t) === selectedMonth);
+
+  const visibleTransactions = monthTransactions
     .filter((t) => {
       if (selectedCategory === 'all') return true;
       if (selectedCategory === 'none') return t.category === '';
@@ -38,9 +39,23 @@ export default async function TransacoesPage({ searchParams }: TransacoesPagePro
     })
     .sort((a, b) => b.date.localeCompare(a.date));
 
+  // Saldo líquido do mês = soma das saídas − soma das entradas de TODAS as
+  // transações do mês (independente do filtro de categoria selecionado) —
+  // mesmo cálculo usado no Resumo mensal (ver app/analises/page.tsx).
+  const monthNetTotal = monthTransactions.reduce(
+    (total, t) => total + (t.type === 'saida' ? t.value : -t.value),
+    0
+  );
+
   return (
     <div>
-      <h1 className="mb-6 text-xl font-semibold text-neutral-900 dark:text-neutral-100">Transações</h1>
+      <h1 className="mb-1 text-xl font-semibold text-neutral-900 dark:text-neutral-100">Transações</h1>
+      <p className="mb-6 text-sm text-neutral-500 dark:text-neutral-400">
+        Saldo líquido do mês:{' '}
+        <span className="font-medium text-neutral-900 dark:text-neutral-100">
+          {monthNetTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+        </span>
+      </p>
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <MonthNavigator

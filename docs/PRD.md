@@ -45,6 +45,8 @@ O agrupamento por mês aqui segue exatamente o mesmo critério da tela de Transa
 
 Só categorias com saldo líquido **positivo** aparecem no gráfico (categorias com saldo zero ou negativo — como uma entrada de dinheiro sem gasto correspondente no mês, ex: restituição de Imposto de Renda categorizada como "Receita" — não são exibidas, já que o resumo é sobre gastos, não sobre entradas de dinheiro).
 
+Acima do gráfico, é exibido um **Total do mês**: a soma de todos os saldos líquidos positivos mostrados no gráfico (isto é, o total gasto no mês, somando todas as categorias exibidas).
+
 ### Formato
 
 Vamos fazer tudo isso num formato web app
@@ -67,6 +69,8 @@ O menu lateral também tem um botão de alternância de tema (claro/escuro), apl
 **Fluxo de upload:** (1) o usuário seleciona qual é a fonte do arquivo (ex: C6 (cartão de crédito), Nubank (cartão de crédito), Nubank (extrato conta corrente / Pix)) — isso define qual mapeamento de colunas será usado; (2) faz o upload do CSV; (3) passa pela tela de revisão/categorização (sugestões + edição manual); (4) confirma. As transações só aparecem na aba Transações depois dessa confirmação.
 
 **Tela de Transações:** organizada por fatura (cada fatura/mês é uma página, navegável com setas). Para transações vindas das Fontes 1 e 2 (faturas de cartão), o agrupamento por página usa o **Mês de referência** (a fatura em que a transação apareceu), não a Data de Compra — isso evita que parcelas de uma mesma compra, que têm a mesma Data de Compra mas aparecem em faturas diferentes, caiam todas na mesma página. Para transações da Fonte 3 (extrato), o agrupamento usa a própria Data, já que não há conceito de fatura ali. Inclui filtro por categoria e por mês — o filtro de categoria tem uma opção explícita **"Sem categoria"**, que mostra só as transações do mês que ainda não têm Categoria definida (útil para auditar inconsistências, como categorias não aparecendo no Resumo mensal por falta de categorização). Busca livre por texto fica fora do MVP (backlog). A categoria de qualquer transação também pode ser editada diretamente aqui (não só na tela de revisão do upload), com o mesmo comportamento retroativo (atualiza todas as transações passadas da mesma empresa).
+
+No topo da página é exibido o **Saldo líquido do mês**: soma das saídas − soma das entradas de todas as transações daquele mês (mesmo cálculo do Resumo mensal), independente do filtro de categoria selecionado.
 
 ### Fontes de dados e regras de importação (adaptador por fonte)
 
