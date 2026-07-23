@@ -10,7 +10,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { parseCsvAction, confirmTransactionsAction, getLearnedCategoryForCompanyAction } from '@/app/actions';
-import { applyCategoryToSameCompany } from '@/lib/categorization';
+import { applyCategoryToSameCompany, normalizeCompanyName } from '@/lib/categorization';
 import { CSV_SOURCE_LIST } from '@/lib/sources';
 import type { SourceId } from '@/lib/sources';
 import type { ReviewRow } from '@/lib/types';
@@ -75,15 +75,35 @@ export default function UploadFlow({
 
   // Editar a Empresa de uma linha dispara a cascata: recalcula a Categoria
   // dessa linha a partir da empresa nova (categoria já aprendida para ela,
-  // ou vazio se a empresa é desconhecida). A consulta é feita no servidor
-  // porque as regras de categoria aprendidas vivem em category-rules.json,
-  // que não é enviado inteiro para o cliente.
+  // ou vazio se a empresa é desconhecida).
+  //
+  // Prioridade 1: outra linha desta MESMA sessão de revisão (ainda não
+  // confirmada, portanto ainda não salva em category-rules.json) já foi
+  // categorizada para essa empresa. Sem checar isso primeiro, categorizar a
+  // primeira linha de uma empresa nova só valeria para as outras linhas depois
+  // de confirmar a revisão inteira — o usuário teria que repetir manualmente
+  // a mesma categoria em cada linha da mesma empresa dentro da própria tela
+  // de revisão.
+  // Prioridade 2: se nenhuma linha da sessão atual ajuda, aí sim consulta o
+  // servidor, porque as regras aprendidas de uploads anteriores vivem em
+  // category-rules.json, que não é enviado inteiro para o cliente.
   async function handleCompanyChange(reviewId: string, newCompany: string) {
     setKnownCompanies((current) =>
       current.includes(newCompany) ? current : sortAlphabetically([...current, newCompany])
     );
 
-    const learnedCategory = await getLearnedCategoryForCompanyAction(newCompany);
+    const normalizedNewCompany = normalizeCompanyName(newCompany);
+    const sessionMatch =
+      normalizedNewCompany === ''
+        ? undefined
+        : reviewRows?.find(
+            (row) =>
+              row.reviewId !== reviewId &&
+              row.category !== '' &&
+              normalizeCompanyName(row.company) === normalizedNewCompany
+          );
+
+    const learnedCategory = sessionMatch ? sessionMatch.category : await getLearnedCategoryForCompanyAction(newCompany);
     if (learnedCategory) {
       setKnownCategories((current) =>
         current.includes(learnedCategory) ? current : sortAlphabetically([...current, learnedCategory])
