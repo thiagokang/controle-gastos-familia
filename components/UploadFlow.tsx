@@ -10,6 +10,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { parseCsvAction, confirmTransactionsAction, getLearnedCategoryForCompanyAction } from '@/app/actions';
+import { applyCategoryToSameCompany } from '@/lib/categorization';
 import { CSV_SOURCE_LIST } from '@/lib/sources';
 import type { SourceId } from '@/lib/sources';
 import type { ReviewRow } from '@/lib/types';
@@ -105,17 +106,23 @@ export default function UploadFlow({
     );
   }
 
+  // Mesmo mecanismo de correção retroativa da tela de Transações (ver
+  // updateTransactionCategoryAction em app/actions.ts): editar a categoria de
+  // uma linha propaga a mudança para todas as outras linhas do lote ainda em
+  // revisão que sejam da mesma empresa, via applyCategoryToSameCompany.
   function handleCategoryChange(reviewId: string, newCategory: string) {
     setKnownCategories((current) =>
       current.includes(newCategory) ? current : sortAlphabetically([...current, newCategory])
     );
-    setReviewRows((current) =>
-      current
-        ? current.map((row) =>
-            row.reviewId === reviewId ? { ...row, category: newCategory } : row
-          )
-        : current
-    );
+    setReviewRows((current) => {
+      if (!current) return current;
+      const target = current.find((row) => row.reviewId === reviewId);
+      if (!target) return current;
+      const withEdit = current.map((row) =>
+        row.reviewId === reviewId ? { ...row, category: newCategory } : row
+      );
+      return applyCategoryToSameCompany(withEdit, target.company, newCategory);
+    });
   }
 
   async function handleConfirm() {

@@ -75,6 +75,30 @@ export function getLearnedCategory(company: string, rules: CategoryRules): strin
   return rules[normalizedCompany] ?? null;
 }
 
+// Núcleo puro da correção retroativa: aplica newCategory a toda linha cuja
+// empresa (normalizada) bate com `company`. Usado tanto para transações já
+// salvas (learnAndApplyRetroactively, abaixo — tela de Transações) quanto
+// para as linhas ainda em memória da tela de revisão do upload (ver
+// handleCategoryChange em components/UploadFlow.tsx) — as duas telas
+// aplicam exatamente o mesmo mecanismo, não cópias dele.
+//
+// IMPORTANTE: empresa em branco nunca é uma chave válida de agrupamento —
+// ver comentário de learnAndApplyRetroactively.
+export function applyCategoryToSameCompany<T extends { company: string; category: string }>(
+  rows: T[],
+  company: string,
+  newCategory: string
+): T[] {
+  const normalizedCompany = normalizeCompanyName(company);
+  if (normalizedCompany === '') return rows;
+
+  return rows.map((row) =>
+    normalizeCompanyName(row.company) === normalizedCompany && row.category !== newCategory
+      ? { ...row, category: newCategory }
+      : row
+  );
+}
+
 // Aplica a categoria escolhida para uma empresa a TODAS as transações dessa
 // empresa (correção retroativa) e atualiza a regra aprendida correspondente.
 // Retorna as listas atualizadas (imutável — não modifica os argumentos originais)
@@ -105,15 +129,11 @@ export function learnAndApplyRetroactively(
     [normalizedCompany]: newCategory,
   };
 
-  let retroactiveCount = 0;
-  const updatedTransactions = currentTransactions.map((transaction) => {
-    const isSameCompany = normalizeCompanyName(transaction.company) === normalizedCompany;
-    if (isSameCompany && transaction.category !== newCategory) {
-      retroactiveCount += 1;
-      return { ...transaction, category: newCategory };
-    }
-    return transaction;
-  });
+  const updatedTransactions = applyCategoryToSameCompany(currentTransactions, company, newCategory);
+  const retroactiveCount = updatedTransactions.reduce(
+    (count, transaction, index) => count + (transaction !== currentTransactions[index] ? 1 : 0),
+    0
+  );
 
   return { rules: updatedRules, transactions: updatedTransactions, retroactiveCount };
 }
