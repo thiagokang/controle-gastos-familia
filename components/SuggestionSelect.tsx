@@ -74,12 +74,12 @@ export default function SuggestionSelect({
       <option value="" disabled>
         Selecione...
       </option>
+      <option value={CREATE_NEW_OPTION}>{newOptionLabel}</option>
       {allOptions.map((option) => (
         <option key={option} value={option}>
           {option}
         </option>
       ))}
-      <option value={CREATE_NEW_OPTION}>{newOptionLabel}</option>
     </select>
   );
 }
