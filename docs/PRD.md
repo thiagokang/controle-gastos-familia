@@ -1,3 +1,5 @@
+> **Nota sobre este documento:** o Notion (página ["Registrar gasto, categorizar e um resumo mensal"](https://app.notion.com/p/39fee8fb540380c1b45fc293cfca611c), `page_id 39fee8fb-5403-80c1-b45f-c293cfca611c`) é a fonte da verdade para o PRD. Este arquivo (`docs/PRD.md`) é sempre um espelho sincronizado a partir dele — nunca deve ser editado de forma independente. Sempre que o Notion mudar, use um prompt de sincronização dedicado (pedindo para puxar o Notion e realinhar este arquivo) para trazer `docs/PRD.md` de volta ao alinhamento.
+
 # Objetivo
 
 Ter controle dos gastos familiares, podendo analisar por categorias e tipos, para manter uma boa saúde financeira
@@ -18,7 +20,7 @@ Considerar todas as nossas transações (entrada e saída) de diferentes canais 
 Nesse MVP, a idéia é que eu consiga subir a fatura em CSV para coletar esses dados mais facilmente, para começar a registrar os gastos com os seguintes dados:
 
 - Data: seria a data da transação
-- Mês de referência: a qual fatura/mês essa transação pertence (diferente da Data — uma parcela pode ter Data de Compra em um mês e Mês de referência em outro, já que ela aparece em faturas diferentes ao longo do parcelamento). Aplicável só às fontes de fatura de cartão (Fontes 1 e 2); a Fonte 3 (extrato) não tem esse conceito, já que não existe fechamento de fatura ali — usa a própria Data para agrupar por mês
+- Mês de referência: a qual fatura/mês essa transação pertence (diferente da Data — uma parcela pode ter Data de Compra em um mês e Mês de referência em outro, já que ela aparece em faturas diferentes ao longo do parcelamento). Para as Fontes 1 e 2 (faturas de cartão), vem do nome do arquivo. Para a Fonte 3 (extrato/Pix), que não tem fatura de verdade, o Mês de referência é calculado alinhando ao fechamento do cartão principal (C6, dia 3): se o dia da Data for < 3, o Mês de referência é o mesmo mês da Data; se for ≥ 3 (incluindo o próprio dia 3), é o mês seguinte. Isso é uma aproximação deliberada (o fechamento real do Nubank é dia 8, diferente do C6) para manter um alinhamento único de período entre todas as fontes
 - Tipo: Entrada ou saída de dinheiro
 - Instituição: Por onde foi feita a transação (ex: Nubank, C6)
 - Formato: De qual forma foi feita a transação (ex: pix, cartão de crédito)
@@ -31,7 +33,7 @@ Nesse MVP, a idéia é que eu consiga subir a fatura em CSV para coletar esses d
     - Obs: No MVP, não precisamos conectar as compras parceladas entre si
 - Categoria: Qual a origem do gasto (Ex: alimentação, educação, saúde, lazer, transporte, etc)
     - Identificar a qual categoria determinada transação pertence vai ser um trabalho gradual onde a cada fatura que subo eu devo categorizar o que ainda não se sabe. Uma vez categorizado, essa informação deve ser salva num lugar para que seja reaproveitada na interpretação de uma outra fatura. Vale também considerar a possibilidade que eu vou errar de categoria e vou querer corrigir depois, sendo que essa correção deve valer de forma retroativa
-    - Para reduzir meu trabalho, se for possível de se já trazer sugestões a partir de algumas palavras-chave (ex: “Uber” → “transporte”), pode trazer a sugestão
+    - Para reduzir meu trabalho, se for possível de se já trazer sugestões a partir de algumas palavras-chave (ex: "Uber" → "transporte"), pode trazer a sugestão
 - Valor: O valor gasto
     - Obs: no caso de uma compra parcelada, seria o valor de uma única parcela
 
@@ -39,17 +41,17 @@ Nesse MVP, a idéia é que eu consiga subir a fatura em CSV para coletar esses d
 
 Vamos começar com um resumo dos gastos feitos naquele mês, onde cada categoria deve ser representada por uma barra e o gráfico deve ser ordenado de forma decrescente.
 
-O agrupamento por mês aqui segue exatamente o mesmo critério da tela de Transações (ver seção "Tela de Transações" abaixo): para transações das Fontes 1 e 2 (faturas de cartão), usa o **Mês de referência**; para transações da Fonte 3 (extrato/Pix), usa a própria Data. Isso garante que o total exibido no Resumo de um determinado mês bata exatamente com as transações que aparecem naquele mesmo mês na tela de Transações.
+**Qual "mês" considerar:** o mesmo critério usado na tela de Transações — todas as fontes (1, 2 e 3) usam o **Mês de referência**, não a Data. Isso garante que o mês exibido no Resumo bata exatamente com o que aparece na página daquele mesmo mês em Transações.
 
 **Regra de cálculo:** para cada categoria, o valor exibido é o **saldo líquido** = soma das saídas − soma das entradas daquela categoria, no mês. Isso cobre casos como um estorno cancelando um gasto anterior (ex: anuidade do cartão estornada) — desde que a entrada seja categorizada na mesma categoria do gasto original, o saldo líquido reflete corretamente que aquele gasto não se concretizou.
 
 Só categorias com saldo líquido **positivo** aparecem no gráfico (categorias com saldo zero ou negativo — como uma entrada de dinheiro sem gasto correspondente no mês, ex: restituição de Imposto de Renda categorizada como "Receita" — não são exibidas, já que o resumo é sobre gastos, não sobre entradas de dinheiro).
 
-Acima do gráfico, é exibido um **Total do mês**: a soma de todos os saldos líquidos positivos mostrados no gráfico (isto é, o total gasto no mês, somando todas as categorias exibidas).
+**Total do mês:** exibir, junto ao gráfico, a soma de todos os saldos líquidos positivos exibidos (ou seja, o total gasto naquele mês, somando todas as categorias mostradas).
 
 ### Formato
 
-Vamos fazer tudo isso num formato web app
+Vamos fazer tudo isso num formato web app, com suporte a modo escuro (dark mode) — alternando entre claro/escuro, já que o uso mais comum deve ser à noite
 
 ### Stack técnica
 
@@ -59,7 +61,7 @@ Next.js para front e JSON local para armazenamento das transações
 
 O produto terá um menu lateral fixo com duas seções: **Transações** e **Análises**.
 
-- **Transações**: lista de todas as transações já confirmadas, com data, empresa, categoria e valor.
+- **Transações**: lista de todas as transações já confirmadas, com Data, Tipo, Instituição, Formato, Empresa, Parcela, Valor e Categoria.
 - **Análises**: comporta múltiplas análises. A primeira é o Resumo mensal (gráfico de barras por categoria). As demais análises já mapeadas no backlog (Visão geral vs. média histórica, Tendência da categoria) entram aqui também, conforme forem desenvolvidas.
 
 Um botão de upload de fatura fica sempre acessível, independente da seção onde o usuário está.
@@ -68,9 +70,31 @@ O menu lateral também tem um botão de alternância de tema (claro/escuro), apl
 
 **Fluxo de upload:** (1) o usuário seleciona qual é a fonte do arquivo (ex: C6 (cartão de crédito), Nubank (cartão de crédito), Nubank (extrato conta corrente / Pix)) — isso define qual mapeamento de colunas será usado; (2) faz o upload do CSV; (3) passa pela tela de revisão/categorização (sugestões + edição manual); (4) confirma. As transações só aparecem na aba Transações depois dessa confirmação.
 
-**Tela de Transações:** organizada por fatura (cada fatura/mês é uma página, navegável com setas). Para transações vindas das Fontes 1 e 2 (faturas de cartão), o agrupamento por página usa o **Mês de referência** (a fatura em que a transação apareceu), não a Data de Compra — isso evita que parcelas de uma mesma compra, que têm a mesma Data de Compra mas aparecem em faturas diferentes, caiam todas na mesma página. Para transações da Fonte 3 (extrato), o agrupamento usa a própria Data, já que não há conceito de fatura ali. Inclui filtro por categoria e por mês — o filtro de categoria tem uma opção explícita **"Sem categoria"**, que mostra só as transações do mês que ainda não têm Categoria definida (útil para auditar inconsistências, como categorias não aparecendo no Resumo mensal por falta de categorização). Busca livre por texto fica fora do MVP (backlog). A categoria de qualquer transação também pode ser editada diretamente aqui (não só na tela de revisão do upload), com o mesmo comportamento retroativo (atualiza todas as transações passadas da mesma empresa).
+**Tela de Transações:** organizada por fatura (cada fatura/mês é uma página, navegável com setas). O agrupamento por página usa o **Mês de referência** para todas as fontes (1, 2 e 3) — não a Data/Data de Compra. Isso evita que parcelas de uma mesma compra, que têm a mesma Data de Compra mas aparecem em faturas diferentes, caiam todas na mesma página, e mantém as transações de extrato alinhadas ao mesmo período das faturas de cartão. Inclui ordenação e filtro por coluna — ver seção "Ordenação e filtro na tela de Transações" logo abaixo, que substitui o filtro simples de categoria/mês do MVP anterior. A categoria de qualquer transação também pode ser editada diretamente aqui (não só na tela de revisão do upload), com o mesmo comportamento retroativo (atualiza todas as transações passadas da mesma empresa).
 
-No topo da página é exibido o **Saldo líquido do mês**: soma das saídas − soma das entradas de todas as transações daquele mês (mesmo cálculo do Resumo mensal), independente do filtro de categoria selecionado.
+**Total do mês:** exibir, no topo ou rodapé da página daquele mês, a soma de todas as transações de saída menos entradas visualizadas ali (mesmo raciocínio de saldo líquido usado no Resumo Mensal) — esse total nunca reflete o filtro ativo selecionado na tabela, é sempre a soma de todas as transações do mês.
+
+### Ordenação e filtro na tela de Transações
+
+> Esta seção descreve o comportamento esperado da feature; a implementação em código ainda não foi feita (é o próximo passo depois desta sincronização de PRD).
+
+Cada coluna da tabela (Data, Empresa, Categoria, Tipo, Valor, Fonte) pode ser ordenada e/ou filtrada, mas **apenas uma ordenação e um filtro ficam ativos por vez** (nunca múltiplos filtros ou múltiplas ordenações simultâneos). Ordenação e filtro podem, no entanto, coexistir entre si (ex: filtrar por Categoria = Mercado **e** ordenar por Valor decrescente ao mesmo tempo).
+
+- **Ordenação:** clicar no ícone de ordenação do header alterna a direção (crescente/decrescente); selecionar outra coluna substitui a ordenação anterior.
+- **Filtro por coluna:**
+
+| Coluna | Tipo de filtro |
+| --- | --- |
+| Categoria | Seleção única via dropdown (inclui opção "Sem categoria"). Passa a viver no header da tabela — antes ficava em outro local da tela |
+| Fonte | Seleção única via dropdown (novo — não existe hoje) |
+| Empresa | Seleção única via campo de busca com autocomplete (combobox) sobre a lista de Empresas já normalizadas |
+| Tipo | Seleção única (Todos / Entrada / Saída) |
+| Valor | Filtro por faixa (mínimo/máximo) |
+| Data | Filtro por intervalo de dias, restrito ao mês/fatura já selecionado na tela (não permite escolher outro mês) |
+| Descrição | Sem filtro ou ordenação dedicados. A busca de Empresa também varre o campo de Descrição bruta, mas por correspondência literal de substring — não corrige nomes truncados no arquivo original (ex: buscar "mineira" só encontra a transação se a Empresa já tiver sido normalizada para o nome completo) |
+
+- **Indicador visual:** coluna com ordenação ativa mostra seta única indicando a direção; coluna com filtro ativo mostra ícone de filtro preenchido/destacado. Um chip acima da tabela mostra o filtro ativo, com opção de removê-lo.
+- **Troca de fatura:** ao navegar para outra fatura/mês, filtro e ordenação ativos são resetados — a tela sempre inicia "limpa" na fatura nova.
 
 ### Fontes de dados e regras de importação (adaptador por fonte)
 
@@ -121,6 +145,7 @@ Colunas do arquivo: `Data` · `Valor` · `Identificador` · `Descrição` — se
 | Campo do app | Origem / regra |
 | --- | --- |
 | Data | ← coluna `Data` |
+| Mês de referência | Calculado a partir da Data, alinhado ao fechamento do C6 (dia 3): se dia da Data < 3, mesmo mês da Data; se dia ≥ 3 (incluindo o próprio dia 3), mês seguinte |
 | Tipo | Regra: definido diretamente pelo sinal de `Valor` (negativo = "saída", positivo = "entrada"). Não se aplica a regra de Estorno aqui — o próprio dado já resolve
 Antes disso, linhas que representam o pagamento de uma fatura de cartão feito a partir dessa conta (ex: Descrição contendo "Pagamento de fatura" ou "Pagamento de boleto efetuado - Banco C6 S.A.") são descartadas e não geram transação — evita contar como gasto algo que já foi registrado na própria fatura do cartão (Fontes 1 e 2) |
 | Instituição | Fixo: "Nubank" |
@@ -135,6 +160,15 @@ Antes disso, linhas que representam o pagamento de uma fatura de cartão feito a
 #### Regra geral de estorno/reembolso
 
 Aplica-se apenas às fontes 1 e 2 (faturas de cartão). Quando uma transação vem com valor negativo, ela é tratada como **Tipo = "entrada"**. Não existe uma categoria fixa/hard-coded para esse caso — a categoria continua sendo definida pelo motor normal de categorização (ou manualmente pelo usuário), da mesma forma que qualquer outra transação.
+
+#### Regra de normalização: apps de delivery não devem se fundir com o estabelecimento presencial
+
+Quando a descrição bruta de uma transação contém um prefixo de app de delivery/intermediário (ex: "IFD*", "UBER*", "RAPPI*"), o motor de normalização de Empresa não deve remover esse prefixo ao gerar o nome canônico. Isso é importante porque um mesmo estabelecimento pode gerar duas Empresas diferentes e legítimas:
+
+- Cobrança direta no estabelecimento (presencial) → Empresa = nome do estabelecimento (ex: "Restaurante X")
+- Cobrança via app de delivery → Empresa = nome do estabelecimento + indicação do app (ex: "Restaurante X (iFood)")
+
+Se as duas formas fossem normalizadas para a mesma Empresa, a regra de Categoria aprendida se propagaria retroativamente entre elas (ex: categorizar um pedido de delivery como "Delivery" faria as idas presenciais ao mesmo restaurante também virarem "Delivery", e vice-versa) — o que não é o comportamento desejado, já que essas duas modalidades normalmente pertencem a categorias diferentes (ex: "Restaurante" vs. "Delivery").
 
 #### Criação de categoria nova
 
