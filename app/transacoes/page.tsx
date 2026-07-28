@@ -1,25 +1,25 @@
 import { readTransactions } from '@/lib/storage';
 import { currentMonthKey, getGroupingMonthKey } from '@/lib/dateUtils';
 import MonthNavigator from '@/components/MonthNavigator';
-import CategoryFilter from '@/components/CategoryFilter';
 import TransactionsTable from '@/components/TransactionsTable';
 
 interface TransacoesPageProps {
-  searchParams: Promise<{ month?: string; category?: string }>;
+  searchParams: Promise<{ month?: string }>;
 }
 
-// Tela principal: lista as transações já confirmadas, de um mês por vez,
-// com filtro opcional por categoria. O mês e a categoria selecionados vivem
-// na URL (?month=2026-07&category=Alimentação), então dá pra voltar/avançar
-// no navegador e compartilhar o link de uma visão específica.
+// Tela principal: lista as transações já confirmadas, de um mês por vez. O
+// mês selecionado vive na URL (?month=2026-07), então dá pra voltar/avançar
+// no navegador e compartilhar o link de um mês específico. Ordenação e
+// filtro por coluna (ver docs/PRD.md) já vivem como estado local dentro de
+// TransactionsTable — o key={selectedMonth} abaixo garante que esse estado
+// reseta pro padrão toda vez que o usuário troca de mês/fatura.
 export default async function TransacoesPage({ searchParams }: TransacoesPageProps) {
-  const { month, category } = await searchParams;
+  const { month } = await searchParams;
   const allTransactions = await readTransactions();
 
   const monthKeysWithData = Array.from(new Set(allTransactions.map(getGroupingMonthKey))).sort();
   const mostRecentMonth = monthKeysWithData[monthKeysWithData.length - 1] ?? currentMonthKey();
   const selectedMonth = month ?? mostRecentMonth;
-  const selectedCategory = category ?? 'all';
 
   const allCategories = Array.from(
     new Set(allTransactions.map((t) => t.category).filter((c) => c !== ''))
@@ -31,16 +31,8 @@ export default async function TransacoesPage({ searchParams }: TransacoesPagePro
 
   const monthTransactions = allTransactions.filter((t) => getGroupingMonthKey(t) === selectedMonth);
 
-  const visibleTransactions = monthTransactions
-    .filter((t) => {
-      if (selectedCategory === 'all') return true;
-      if (selectedCategory === 'none') return t.category === '';
-      return t.category === selectedCategory;
-    })
-    .sort((a, b) => b.date.localeCompare(a.date));
-
   // Saldo líquido do mês = soma das saídas − soma das entradas de TODAS as
-  // transações do mês (independente do filtro de categoria selecionado) —
+  // transações do mês (independente do filtro selecionado na tabela) —
   // mesmo cálculo usado no Resumo mensal (ver app/analises/page.tsx).
   const monthNetTotal = monthTransactions.reduce(
     (total, t) => total + (t.type === 'saida' ? t.value : -t.value),
@@ -58,20 +50,12 @@ export default async function TransacoesPage({ searchParams }: TransacoesPagePro
       </p>
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <MonthNavigator
-          basePath="/transacoes"
-          monthKey={selectedMonth}
-          extraParams={selectedCategory !== 'all' ? { category: selectedCategory } : {}}
-        />
-        <CategoryFilter
-          categories={allCategories}
-          selectedCategory={selectedCategory}
-          monthKey={selectedMonth}
-        />
+        <MonthNavigator basePath="/transacoes" monthKey={selectedMonth} />
       </div>
 
       <TransactionsTable
-        transactions={visibleTransactions}
+        key={selectedMonth}
+        transactions={monthTransactions}
         knownCompanies={allCompanies}
         knownCategories={allCategories}
       />

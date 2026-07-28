@@ -76,8 +76,6 @@ No topo da página é exibido o **Saldo líquido do mês**: soma das saídas −
 
 ### Ordenação e filtro na tela de Transações
 
-> Esta seção descreve o comportamento esperado da feature; a implementação em código ainda não foi feita (é o próximo passo depois desta sincronização de PRD).
-
 Cada coluna da tabela (Data, Tipo, Instituição, Formato, Empresa, Categoria, Valor) pode ser ordenada e/ou filtrada, mas **apenas uma ordenação e um filtro ficam ativos por vez** (nunca múltiplos filtros ou múltiplas ordenações simultâneos). Ordenação e filtro podem, no entanto, coexistir entre si (ex: filtrar por Categoria = Mercado **e** ordenar por Valor decrescente ao mesmo tempo).
 
 - **Ordenação:** clicar no ícone de ordenação do header alterna a direção (crescente/decrescente); selecionar outra coluna substitui a ordenação anterior.
@@ -92,7 +90,7 @@ Cada coluna da tabela (Data, Tipo, Instituição, Formato, Empresa, Categoria, V
 | Tipo | Seleção única (Todos / Entrada / Saída) |
 | Valor | Filtro por faixa (mínimo/máximo) |
 | Data | Filtro por intervalo de dias, restrito ao mês/fatura já selecionado na tela (não permite escolher outro mês) |
-| Descrição | Sem filtro ou ordenação dedicados. A busca de Empresa também varre o campo de Descrição bruta, mas por correspondência literal de substring — não corrige nomes truncados no arquivo original (ex: buscar "mineira" só encontra a transação se a Empresa já tiver sido normalizada para o nome completo) |
+| Descrição | Sem filtro, ordenação ou busca dedicados. O campo de busca de Empresa pesquisa apenas o campo Empresa (nome canônico já normalizado) — não varre o campo de Descrição bruta |
 
 - **Indicador visual:** coluna com ordenação ativa mostra seta única indicando a direção; coluna com filtro ativo mostra ícone de filtro preenchido/destacado. Um chip acima da tabela mostra o filtro ativo, com opção de removê-lo.
 - **Troca de fatura:** ao navegar para outra fatura/mês, filtro e ordenação ativos são resetados — a tela sempre inicia "limpa" na fatura nova.
