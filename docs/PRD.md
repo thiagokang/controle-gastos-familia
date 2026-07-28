@@ -72,13 +72,13 @@ O menu lateral também tem um botão de alternância de tema (claro/escuro), apl
 
 **Tela de Transações:** organizada por fatura (cada fatura/mês é uma página, navegável com setas). O agrupamento por página usa o **Mês de referência** para todas as fontes (1, 2 e 3) — não a Data/Data de Compra. Isso evita que parcelas de uma mesma compra, que têm a mesma Data de Compra mas aparecem em faturas diferentes, caiam todas na mesma página, e mantém as transações de extrato alinhadas ao mesmo período das faturas de cartão. Inclui ordenação e filtro por coluna — ver seção "Ordenação e filtro na tela de Transações" logo abaixo, que substitui o filtro simples de categoria/mês do MVP anterior. A categoria de qualquer transação também pode ser editada diretamente aqui (não só na tela de revisão do upload), com o mesmo comportamento retroativo (atualiza todas as transações passadas da mesma empresa).
 
-**Total do mês:** exibir, no topo ou rodapé da página daquele mês, a soma de todas as transações de saída menos entradas visualizadas ali (mesmo raciocínio de saldo líquido usado no Resumo Mensal) — esse total nunca reflete o filtro ativo selecionado na tabela, é sempre a soma de todas as transações do mês.
+No topo da página é exibido o **Saldo líquido do mês**: soma das saídas − soma das entradas de todas as transações daquele mês (mesmo cálculo do Resumo mensal), **independente do filtro selecionado** — ou seja, o valor reflete sempre o mês inteiro, mesmo que a tabela esteja filtrada.
 
 ### Ordenação e filtro na tela de Transações
 
 > Esta seção descreve o comportamento esperado da feature; a implementação em código ainda não foi feita (é o próximo passo depois desta sincronização de PRD).
 
-Cada coluna da tabela (Data, Empresa, Categoria, Tipo, Valor, Fonte) pode ser ordenada e/ou filtrada, mas **apenas uma ordenação e um filtro ficam ativos por vez** (nunca múltiplos filtros ou múltiplas ordenações simultâneos). Ordenação e filtro podem, no entanto, coexistir entre si (ex: filtrar por Categoria = Mercado **e** ordenar por Valor decrescente ao mesmo tempo).
+Cada coluna da tabela (Data, Tipo, Instituição, Formato, Empresa, Categoria, Valor) pode ser ordenada e/ou filtrada, mas **apenas uma ordenação e um filtro ficam ativos por vez** (nunca múltiplos filtros ou múltiplas ordenações simultâneos). Ordenação e filtro podem, no entanto, coexistir entre si (ex: filtrar por Categoria = Mercado **e** ordenar por Valor decrescente ao mesmo tempo).
 
 - **Ordenação:** clicar no ícone de ordenação do header alterna a direção (crescente/decrescente); selecionar outra coluna substitui a ordenação anterior.
 - **Filtro por coluna:**
@@ -86,7 +86,8 @@ Cada coluna da tabela (Data, Empresa, Categoria, Tipo, Valor, Fonte) pode ser or
 | Coluna | Tipo de filtro |
 | --- | --- |
 | Categoria | Seleção única via dropdown (inclui opção "Sem categoria"). Passa a viver no header da tabela — antes ficava em outro local da tela |
-| Fonte | Seleção única via dropdown (novo — não existe hoje) |
+| Instituição | Seleção única via dropdown (novo — não existe hoje) |
+| Formato | Seleção única via dropdown (novo — não existe hoje) |
 | Empresa | Seleção única via campo de busca com autocomplete (combobox) sobre a lista de Empresas já normalizadas |
 | Tipo | Seleção única (Todos / Entrada / Saída) |
 | Valor | Filtro por faixa (mínimo/máximo) |
