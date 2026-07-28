@@ -15,15 +15,30 @@ export function getMonthKey(isoDate: string): string {
 }
 
 // Mês usado para AGRUPAR/PAGINAR uma transação por fatura (tela de
-// Transações e Resumo mensal). Para transações com "Mês de referência"
-// definido (faturas de cartão — Fontes 1 e 2, ver lib/types.ts), usa esse
-// campo; senão (Fonte 3, extrato/Pix, que não tem conceito de fatura
-// fechada) cai para o mês da própria Data. Sem isso, parcelas de uma mesma
-// compra — que sempre têm a mesma Data de Compra — ficariam todas
-// agrupadas no mês da compra original, em vez de cada uma na fatura em que
-// de fato foi cobrada.
+// Transações e Resumo mensal). Sempre usa o campo "Mês de referência" — para
+// faturas de cartão (Fontes 1 e 2) ele vem do nome do arquivo; para o
+// extrato/Pix (Fonte 3) é calculado a partir da Data pelo fechamento do
+// cartão C6 (ver getExtratoReferenceMonth). O fallback para o mês da própria
+// Data só existe por segurança, para transações antigas salvas antes desse
+// campo existir.
 export function getGroupingMonthKey(transaction: { date: string; referenceMonth: string | null }): string {
   return transaction.referenceMonth ?? getMonthKey(transaction.date);
+}
+
+// Dia do mês em que a fatura do cartão C6 fecha. A Fonte 3 (extrato/Pix)
+// não tem fatura própria, mas o "Mês de referência" dela é alinhado a esse
+// mesmo fechamento para que o Resumo mensal fique consistente entre fontes.
+const C6_CLOSING_DAY = 3;
+
+// Calcula o "Mês de referência" de uma transação da Fonte 3 (extrato/Pix) a
+// partir da própria Data: dias antes do fechamento (1 e 2) ficam no mês da
+// Data; do próprio dia do fechamento (3) em diante já avançam para o mês
+// seguinte (com rollover de ano em dezembro -> janeiro), pois é isso que
+// cairia na fatura fechada nesse dia.
+export function getExtratoReferenceMonth(isoDate: string): string {
+  const day = Number(isoDate.slice(8, 10));
+  const monthKey = getMonthKey(isoDate);
+  return day < C6_CLOSING_DAY ? monthKey : shiftMonthKey(monthKey, 1);
 }
 
 // Transforma "2026-07" em "Julho 2026", para exibir no navegador de meses.

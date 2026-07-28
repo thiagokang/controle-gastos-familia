@@ -19,9 +19,11 @@ export interface Transaction {
   // página na tela de Transações e no Resumo mensal. "AAAA-MM" para
   // transações de fatura de cartão (Fontes 1 e 2 — inferido do nome do
   // arquivo enviado, já que o CSV não traz essa informação em coluna
-  // nenhuma). null para a Fonte 3 (extrato/Pix), que não tem conceito de
-  // fatura fechada — nesse caso o agrupamento usa a própria "date" (ver
-  // lib/dateUtils.ts, getGroupingMonthKey). É por causa desse campo que
+  // nenhuma). Para a Fonte 3 (extrato/Pix), que não tem fatura própria, é
+  // calculado a partir da "date" pelo fechamento do cartão C6, dia 3 (ver
+  // lib/dateUtils.ts, getExtratoReferenceMonth) — só fica null em
+  // transações antigas salvas antes desse campo existir (ver
+  // getGroupingMonthKey para o fallback). É por causa desse campo que
   // parcelas de uma mesma compra — que sempre têm a mesma Data de Compra,
   // mas são cobradas em faturas/meses diferentes — aparecem cada uma na
   // página do mês certo, em vez de todas amontoadas no mês da compra original.

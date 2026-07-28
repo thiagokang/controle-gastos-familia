@@ -20,6 +20,7 @@ import { randomUUID } from 'crypto';
 import { CSV_SOURCES } from '@/lib/sources';
 import type { SourceId } from '@/lib/sources';
 import { extractMonthKeyFromFilename } from '@/lib/csvHelpers';
+import { getExtratoReferenceMonth } from '@/lib/dateUtils';
 import { getLearnedCategory, learnAndApplyRetroactively, suggestCategory } from '@/lib/categorization';
 import { learnAndApplyCompanyRetroactively, normalizeDescriptionKey, suggestCompany } from '@/lib/companyNormalization';
 import {
@@ -53,13 +54,15 @@ export async function parseCsvAction(
 
   // Faturas de cartão (Fontes 1 e 2) não trazem, em nenhuma coluna do CSV,
   // a qual fatura/mês elas pertencem — isso só existe no nome do arquivo
-  // que o usuário sobe (ex: "Fatura_2026-07-10.csv" -> julho/2026). A Fonte
-  // 3 (extrato/Pix) não tem esse conceito: cada transação usa a própria
-  // Data para agrupamento (ver getGroupingMonthKey em lib/dateUtils.ts).
-  let referenceMonth: string | null = null;
+  // que o usuário sobe (ex: "Fatura_2026-07-10.csv" -> julho/2026). Já a
+  // Fonte 3 (extrato/Pix) não tem fatura própria, mas cada transação tem seu
+  // Mês de referência calculado individualmente a partir da própria Data
+  // (ver getExtratoReferenceMonth em lib/dateUtils.ts), então aqui fica null
+  // por enquanto — resolvido linha a linha mais abaixo.
+  let filenameReferenceMonth: string | null = null;
   if (sourceId === 'c6-credito' || sourceId === 'nubank-credito') {
-    referenceMonth = extractMonthKeyFromFilename(file.name);
-    if (!referenceMonth) {
+    filenameReferenceMonth = extractMonthKeyFromFilename(file.name);
+    if (!filenameReferenceMonth) {
       return {
         rows: [],
         errors: [
@@ -84,7 +87,7 @@ export async function parseCsvAction(
     return {
       reviewId: randomUUID(),
       ...row,
-      referenceMonth,
+      referenceMonth: filenameReferenceMonth ?? getExtratoReferenceMonth(row.date),
       company,
       companySource,
       category,
