@@ -20,9 +20,11 @@ import { randomUUID } from 'crypto';
 import { CSV_SOURCES } from '@/lib/sources';
 import type { SourceId } from '@/lib/sources';
 import { extractMonthKeyFromFilename } from '@/lib/csvHelpers';
+import { containsCnpj } from '@/lib/cnpj';
 import { getExtratoReferenceMonth } from '@/lib/dateUtils';
 import { getLearnedCategory, learnAndApplyRetroactively, suggestCategory } from '@/lib/categorization';
 import { learnAndApplyCompanyRetroactively, normalizeDescriptionKey, suggestCompany } from '@/lib/companyNormalization';
+import { inferResponsibleFromFilename } from '@/lib/responsible';
 import {
   readCategoryRules,
   readCompanyRules,
@@ -31,7 +33,7 @@ import {
   writeCompanyRules,
   writeTransactions,
 } from '@/lib/storage';
-import type { ReviewRow, Transaction, TransactionType } from '@/lib/types';
+import type { ReviewRow, Responsible, Transaction, TransactionType } from '@/lib/types';
 
 // Passo 1 do fluxo de upload: recebe qual é a fonte do arquivo (isso decide
 // qual mapeamento de colunas usar — veja lib/sources) e o próprio arquivo,
@@ -75,15 +77,34 @@ export async function parseCsvAction(
   const csvText = await file.text();
   const { rows: parsedRows, errors } = source.parse(csvText);
 
+  // Responsável (titular do extrato/fatura de origem): Fontes 1 e 2 são
+  // sempre "TK" (só existe um cartão de crédito da família). Só a Fonte 3
+  // precisa de inferência, a partir do nome do arquivo — cada titular sobe
+  // seu próprio extrato (ver lib/responsible.ts).
+  const responsible: Responsible =
+    sourceId === 'nubank-extrato' ? inferResponsibleFromFilename(file.name) : 'TK';
+
   const companyRules = await readCompanyRules();
   const categoryRules = await readCategoryRules();
 
   const reviewRows: ReviewRow[] = parsedRows.map((row) => {
+    // Fonte 3 (extrato/Pix) sem CNPJ na descrição = Pix entre pessoas
+    // físicas. A descrição bruta desse tipo de Pix (nome, CPF mascarado,
+    // banco, agência, conta) não muda dependendo do propósito da transação,
+    // então não é um proxy confiável para Empresa/Categoria — o motor de
+    // sugestão nem é consultado nesse caso, mesmo que já exista uma regra
+    // aprendida para essa mesma descrição de uploads anteriores.
+    const isPixPessoaFisica = sourceId === 'nubank-extrato' && !containsCnpj(row.description);
+
     // Primeiro sugerimos a Empresa a partir da descrição bruta...
-    const { company, source: companySource } = suggestCompany(row.description, companyRules);
+    const { company, source: companySource } = isPixPessoaFisica
+      ? { company: '', source: 'sem-sugestao' as const }
+      : suggestCompany(row.description, companyRules);
     // ...e só então sugerimos a Categoria a partir da Empresa (se a empresa
     // ficou em branco, suggestCategory naturalmente também não acha nada).
-    const { category, source: categorySource } = suggestCategory(company, categoryRules);
+    const { category, source: categorySource } = isPixPessoaFisica
+      ? { category: '', source: 'sem-sugestao' as const }
+      : suggestCategory(company, categoryRules);
     return {
       reviewId: randomUUID(),
       ...row,
@@ -92,6 +113,8 @@ export async function parseCsvAction(
       companySource,
       category,
       categorySource,
+      isPixPessoaFisica,
+      responsible,
     };
   });
 
@@ -119,6 +142,8 @@ interface ConfirmableRow {
   installment: string | null;
   category: string;
   value: number;
+  isPixPessoaFisica: boolean;
+  responsible: Responsible;
 }
 
 // Passo 2 do fluxo de upload: recebe as linhas já revisadas/editadas pelo
@@ -139,21 +164,29 @@ export async function confirmTransactionsAction(
   const newTransactions: Transaction[] = [];
 
   for (const row of reviewRows) {
-    // Se o usuário não definiu empresa/categoria, não há o que aprender —
-    // a transação é salva mesmo assim, só que com esses campos em branco.
-    if (row.company.trim() !== '') {
-      const companyResult = learnAndApplyCompanyRetroactively(row.description, row.company, companyRules, transactions);
-      companyRules = companyResult.rules;
-      transactions = companyResult.transactions;
-    }
-    // Sem empresa definida não há o que aprender nem aplicar
-    // retroativamente — a categoria escolhida vale só para esta linha (ela
-    // já é gravada com sua própria categoria mais abaixo, independente
-    // deste bloco).
-    if (row.category.trim() !== '' && row.company.trim() !== '') {
-      const categoryResult = learnAndApplyRetroactively(row.company, row.category, categoryRules, transactions);
-      categoryRules = categoryResult.rules;
-      transactions = categoryResult.transactions;
+    // Pix entre pessoas físicas (Fonte 3 sem CNPJ): o usuário pode nomear a
+    // Empresa manualmente (ex: "Irmã X - Plano Saúde Mãe"), mas isso nunca
+    // vira uma regra aprendida nem se aplica retroativamente a outras
+    // transações — cada Pix desses é categorizado transação a transação (ver
+    // docs/PRD.md). A transação em si ainda é salva normalmente logo abaixo,
+    // só com os campos que o usuário definiu.
+    if (!row.isPixPessoaFisica) {
+      // Se o usuário não definiu empresa/categoria, não há o que aprender —
+      // a transação é salva mesmo assim, só que com esses campos em branco.
+      if (row.company.trim() !== '') {
+        const companyResult = learnAndApplyCompanyRetroactively(row.description, row.company, companyRules, transactions);
+        companyRules = companyResult.rules;
+        transactions = companyResult.transactions;
+      }
+      // Sem empresa definida não há o que aprender nem aplicar
+      // retroativamente — a categoria escolhida vale só para esta linha (ela
+      // já é gravada com sua própria categoria mais abaixo, independente
+      // deste bloco).
+      if (row.category.trim() !== '' && row.company.trim() !== '') {
+        const categoryResult = learnAndApplyRetroactively(row.company, row.category, categoryRules, transactions);
+        categoryRules = categoryResult.rules;
+        transactions = categoryResult.transactions;
+      }
     }
 
     newTransactions.push({
@@ -168,6 +201,7 @@ export async function confirmTransactionsAction(
       installment: row.installment,
       category: row.category,
       value: row.value,
+      responsible: row.responsible,
     });
   }
 

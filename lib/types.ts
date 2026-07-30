@@ -4,6 +4,10 @@
 
 export type TransactionType = 'entrada' | 'saida';
 
+// Titular do extrato/fatura de origem da transação. Fixo — sem campo livre
+// (ver lib/responsible.ts e docs/PRD.md, "Regra geral de Responsável").
+export type Responsible = 'TK' | 'Deby';
+
 // Uma transação já confirmada pelo usuário e persistida em data/transactions.json.
 //
 // "description" vs "company": description é o texto EXATAMENTE como veio do
@@ -36,6 +40,11 @@ export interface Transaction {
   installment: string | null; // ex: "9/10", ou null se não for parcelado
   category: string;
   value: number; // valor absoluto (positivo) dessa transação/parcela
+  // Titular do extrato/fatura de origem: "TK" (Thiago) ou "Deby" (esposa).
+  // Fontes 1 e 2 são sempre "TK"; na Fonte 3 é inferido do nome do arquivo
+  // (ver lib/responsible.ts). Só fica null em transações salvas antes desse
+  // campo existir — ver getResponsible para o fallback ("TK").
+  responsible: Responsible | null;
 }
 
 // De onde veio uma sugestão (de Empresa OU de Categoria) mostrada na tela de
@@ -63,6 +72,15 @@ export interface ReviewRow {
   category: string;
   categorySource: SuggestionSource;
   value: number;
+  responsible: Responsible;
+  // true só para linhas da Fonte 3 (extrato/Pix) cuja Descrição bruta não
+  // contém CNPJ — ou seja, Pix entre pessoas físicas (ver
+  // docs/PRD.md, "Pix entre pessoas físicas nunca é automática"). Nesse
+  // caso Empresa/Categoria nunca são sugeridas automaticamente (nem por
+  // regra aprendida, nem por palavra-chave) e a confirmação não deve criar
+  // nem aplicar retroativamente nenhuma regra aprendida a partir delas —
+  // só a transação em si é salva com o que o usuário definir manualmente.
+  isPixPessoaFisica: boolean;
 }
 
 // Mapa "nome normalizado da empresa" -> "categoria escolhida pelo usuário".

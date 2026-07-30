@@ -39,11 +39,12 @@ export default function ReviewTable({
             <th className="px-3 py-2">Data</th>
             <th className="px-3 py-2">Tipo</th>
             <th className="px-3 py-2">Instituição</th>
+            <th className="px-3 py-2">Responsável</th>
             <th className="px-3 py-2">Formato</th>
             <th className="px-3 py-2">Empresa</th>
+            <th className="px-3 py-2">Categoria</th>
             <th className="px-3 py-2">Parcela</th>
             <th className="px-3 py-2">Valor</th>
-            <th className="px-3 py-2">Categoria</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
@@ -52,6 +53,7 @@ export default function ReviewTable({
               <td className="whitespace-nowrap px-3 py-2">{formatDateBR(row.date)}</td>
               <td className="whitespace-nowrap px-3 py-2 capitalize">{row.type}</td>
               <td className="whitespace-nowrap px-3 py-2">{row.institution}</td>
+              <td className="whitespace-nowrap px-3 py-2">{row.responsible}</td>
               <td className="whitespace-nowrap px-3 py-2">{row.format}</td>
               <td className="px-3 py-2">
                 <div className="flex items-center gap-2">
@@ -68,10 +70,6 @@ export default function ReviewTable({
                   {row.description}
                 </div>
               </td>
-              <td className="whitespace-nowrap px-3 py-2">{row.installment ?? '—'}</td>
-              <td className="whitespace-nowrap px-3 py-2">
-                {row.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-              </td>
               <td className="whitespace-nowrap px-3 py-2">
                 <div className="flex items-center gap-2">
                   <SuggestionSelect
@@ -83,6 +81,10 @@ export default function ReviewTable({
                   />
                   <SuggestionBadge source={row.categorySource} />
                 </div>
+              </td>
+              <td className="whitespace-nowrap px-3 py-2">{row.installment ?? '—'}</td>
+              <td className="whitespace-nowrap px-3 py-2">
+                {row.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </td>
             </tr>
           ))}

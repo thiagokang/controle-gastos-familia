@@ -23,8 +23,9 @@ import type { ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowDown, ArrowUp, ArrowUpDown, Filter } from 'lucide-react';
 import { updateTransactionCategoryAction, updateTransactionCompanyAction } from '@/app/actions';
-import type { Transaction, TransactionType } from '@/lib/types';
+import type { Responsible, Transaction, TransactionType } from '@/lib/types';
 import { formatDateBR } from '@/lib/dateUtils';
+import { RESPONSIBLE_VALUES, getResponsible } from '@/lib/responsible';
 import SuggestionSelect from './SuggestionSelect';
 import CompanyFilterCombobox from './transactions/CompanyFilterCombobox';
 import RangeFilterFields from './transactions/RangeFilterFields';
@@ -44,7 +45,7 @@ function sortAlphabetically(values: string[]): string[] {
 // si), conforme docs/PRD.md. "Parcela" e "Descrição" ficam de fora — não têm
 // ordenação/filtro dedicados.
 
-type SortableColumn = 'date' | 'type' | 'institution' | 'format' | 'company' | 'category' | 'value';
+type SortableColumn = 'date' | 'type' | 'institution' | 'format' | 'company' | 'category' | 'value' | 'responsible';
 
 interface SortState {
   column: SortableColumn;
@@ -65,7 +66,8 @@ type FilterState =
   | { column: 'type'; value: TransactionType }
   | { column: 'company'; query: string }
   | { column: 'value'; min: number | null; max: number | null }
-  | { column: 'date'; dayMin: number | null; dayMax: number | null };
+  | { column: 'date'; dayMin: number | null; dayMax: number | null }
+  | { column: 'responsible'; value: Responsible };
 
 function getSortValue(transaction: Transaction, column: SortableColumn): string | number {
   switch (column) {
@@ -83,6 +85,8 @@ function getSortValue(transaction: Transaction, column: SortableColumn): string 
       return transaction.category;
     case 'value':
       return transaction.value;
+    case 'responsible':
+      return getResponsible(transaction);
   }
 }
 
@@ -123,6 +127,8 @@ function filterTransactions(list: Transaction[], filter: FilterState | null): Tr
         const day = Number(t.date.slice(8, 10));
         return (filter.dayMin === null || day >= filter.dayMin) && (filter.dayMax === null || day <= filter.dayMax);
       });
+    case 'responsible':
+      return list.filter((t) => getResponsible(t) === filter.value);
   }
 }
 
@@ -142,6 +148,8 @@ function getFilterChipLabel(filter: FilterState): string {
       return `Valor: ${filter.min ?? '—'} a ${filter.max ?? '—'}`;
     case 'date':
       return `Data: dia ${filter.dayMin ?? '—'} a ${filter.dayMax ?? '—'}`;
+    case 'responsible':
+      return `Responsável: ${filter.value}`;
   }
 }
 
@@ -412,6 +420,38 @@ export default function TransactionsTable({
               </th>
               <th className="px-3 py-2">
                 <div className="flex items-center gap-1">
+                  Responsável
+                  <SortButton
+                    active={sort.column === 'responsible'}
+                    direction={sort.direction}
+                    onClick={() => handleSortClick('responsible')}
+                  />
+                  <ColumnFilterPopover
+                    isOpen={openFilterColumn === 'responsible'}
+                    onOpenChange={(open) => setOpenFilterColumn(open ? 'responsible' : null)}
+                    isActive={filter?.column === 'responsible'}
+                  >
+                    <select
+                      value={filter?.column === 'responsible' ? filter.value : 'all'}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFilter(value === 'all' ? null : { column: 'responsible', value: value as Responsible });
+                        closeFilterPopover();
+                      }}
+                      className="w-32 rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                    >
+                      <option value="all">Todos</option>
+                      {RESPONSIBLE_VALUES.map((value) => (
+                        <option key={value} value={value}>
+                          {value}
+                        </option>
+                      ))}
+                    </select>
+                  </ColumnFilterPopover>
+                </div>
+              </th>
+              <th className="px-3 py-2">
+                <div className="flex items-center gap-1">
                   Formato
                   <SortButton
                     active={sort.column === 'format'}
@@ -470,37 +510,6 @@ export default function TransactionsTable({
                   </ColumnFilterPopover>
                 </div>
               </th>
-              <th className="px-3 py-2">Parcela</th>
-              <th className="px-3 py-2">
-                <div className="flex items-center gap-1">
-                  Valor
-                  <SortButton
-                    active={sort.column === 'value'}
-                    direction={sort.direction}
-                    onClick={() => handleSortClick('value')}
-                  />
-                  <ColumnFilterPopover
-                    isOpen={openFilterColumn === 'value'}
-                    onOpenChange={(open) => setOpenFilterColumn(open ? 'value' : null)}
-                    isActive={filter?.column === 'value'}
-                  >
-                    <RangeFilterFields
-                      minLabel="Valor mínimo"
-                      maxLabel="Valor máximo"
-                      initialMin={filter?.column === 'value' ? filter.min : null}
-                      initialMax={filter?.column === 'value' ? filter.max : null}
-                      onApply={(min, max) => {
-                        setFilter(min === null && max === null ? null : { column: 'value', min, max });
-                        closeFilterPopover();
-                      }}
-                      onClear={() => {
-                        setFilter(null);
-                        closeFilterPopover();
-                      }}
-                    />
-                  </ColumnFilterPopover>
-                </div>
-              </th>
               <th className="px-3 py-2">
                 <div className="flex items-center gap-1">
                   Categoria
@@ -534,12 +543,43 @@ export default function TransactionsTable({
                   </ColumnFilterPopover>
                 </div>
               </th>
+              <th className="px-3 py-2">Parcela</th>
+              <th className="px-3 py-2">
+                <div className="flex items-center gap-1">
+                  Valor
+                  <SortButton
+                    active={sort.column === 'value'}
+                    direction={sort.direction}
+                    onClick={() => handleSortClick('value')}
+                  />
+                  <ColumnFilterPopover
+                    isOpen={openFilterColumn === 'value'}
+                    onOpenChange={(open) => setOpenFilterColumn(open ? 'value' : null)}
+                    isActive={filter?.column === 'value'}
+                  >
+                    <RangeFilterFields
+                      minLabel="Valor mínimo"
+                      maxLabel="Valor máximo"
+                      initialMin={filter?.column === 'value' ? filter.min : null}
+                      initialMax={filter?.column === 'value' ? filter.max : null}
+                      onApply={(min, max) => {
+                        setFilter(min === null && max === null ? null : { column: 'value', min, max });
+                        closeFilterPopover();
+                      }}
+                      onClear={() => {
+                        setFilter(null);
+                        closeFilterPopover();
+                      }}
+                    />
+                  </ColumnFilterPopover>
+                </div>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
             {visibleTransactions.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-3 py-6 text-center text-sm text-neutral-500 dark:text-neutral-400">
+                <td colSpan={9} className="px-3 py-6 text-center text-sm text-neutral-500 dark:text-neutral-400">
                   Nenhuma transação encontrada com esse filtro.
                 </td>
               </tr>
@@ -549,6 +589,7 @@ export default function TransactionsTable({
                   <td className="whitespace-nowrap px-3 py-2">{formatDateBR(transaction.date)}</td>
                   <td className="whitespace-nowrap px-3 py-2 capitalize">{transaction.type}</td>
                   <td className="whitespace-nowrap px-3 py-2">{transaction.institution}</td>
+                  <td className="whitespace-nowrap px-3 py-2">{getResponsible(transaction)}</td>
                   <td className="whitespace-nowrap px-3 py-2">{transaction.format}</td>
                   <td className="px-3 py-2">
                     <SuggestionSelect
@@ -565,10 +606,6 @@ export default function TransactionsTable({
                       {transaction.description}
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2">{transaction.installment ?? '—'}</td>
-                  <td className="whitespace-nowrap px-3 py-2">
-                    {transaction.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                  </td>
                   <td className="whitespace-nowrap px-3 py-2">
                     <SuggestionSelect
                       value={transaction.category}
@@ -577,6 +614,10 @@ export default function TransactionsTable({
                       newOptionLabel="+ Nova categoria..."
                       newOptionPlaceholder="Nome da categoria"
                     />
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2">{transaction.installment ?? '—'}</td>
+                  <td className="whitespace-nowrap px-3 py-2">
+                    {transaction.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </td>
                 </tr>
               ))

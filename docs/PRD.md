@@ -51,7 +51,7 @@ Só categorias com saldo líquido **positivo** aparecem no gráfico (categorias 
 
 ### Formato
 
-Vamos fazer tudo isso num formato web app, com suporte a modo escuro (dark mode) — alternando entre claro/escuro, já que o uso mais comum deve ser à noite
+Vamos fazer tudo isso num formato web app. Suporte a modo escuro (dark mode) — detalhes do toggle de tema estão na seção Navegação, já que ele vive no menu lateral
 
 ### Stack técnica
 
@@ -61,7 +61,7 @@ Next.js para front e JSON local para armazenamento das transações
 
 O produto terá um menu lateral fixo com duas seções: **Transações** e **Análises**.
 
-- **Transações**: lista de todas as transações já confirmadas, com Data, Tipo, Instituição, Formato, Empresa, Parcela, Valor e Categoria.
+- **Transações**: lista de todas as transações já confirmadas, com as colunas Data, Tipo, Instituição, Formato, Empresa, Parcela, Valor, Categoria e Responsável.
 - **Análises**: comporta múltiplas análises. A primeira é o Resumo mensal (gráfico de barras por categoria). As demais análises já mapeadas no backlog (Visão geral vs. média histórica, Tendência da categoria) entram aqui também, conforme forem desenvolvidas.
 
 Um botão de upload de fatura fica sempre acessível, independente da seção onde o usuário está.
@@ -76,7 +76,7 @@ No topo da página é exibido o **Saldo líquido do mês**: soma das saídas −
 
 ### Ordenação e filtro na tela de Transações
 
-Cada coluna da tabela (Data, Tipo, Instituição, Formato, Empresa, Categoria, Valor) pode ser ordenada e/ou filtrada, mas **apenas uma ordenação e um filtro ficam ativos por vez** (nunca múltiplos filtros ou múltiplas ordenações simultâneos). Ordenação e filtro podem, no entanto, coexistir entre si (ex: filtrar por Categoria = Mercado **e** ordenar por Valor decrescente ao mesmo tempo).
+Cada coluna da tabela (Data, Tipo, Instituição, Formato, Empresa, Categoria, Valor, Responsável) pode ser ordenada e/ou filtrada, mas **apenas uma ordenação e um filtro ficam ativos por vez** (nunca múltiplos filtros ou múltiplas ordenações simultâneos). Ordenação e filtro podem, no entanto, coexistir entre si (ex: filtrar por Categoria = Mercado **e** ordenar por Valor decrescente ao mesmo tempo).
 
 - **Ordenação:** clicar no ícone de ordenação do header alterna a direção (crescente/decrescente); selecionar outra coluna substitui a ordenação anterior.
 - **Filtro por coluna:**
@@ -91,6 +91,7 @@ Cada coluna da tabela (Data, Tipo, Instituição, Formato, Empresa, Categoria, V
 | Valor | Filtro por faixa (mínimo/máximo) |
 | Data | Filtro por intervalo de dias, restrito ao mês/fatura já selecionado na tela (não permite escolher outro mês) |
 | Descrição | Sem filtro, ordenação ou busca dedicados. O campo de busca de Empresa pesquisa apenas o campo Empresa (nome canônico já normalizado) — não varre o campo de Descrição bruta |
+| Responsável | Seleção única via dropdown (mesmo padrão de Instituição e Formato) — valores fixos: "TK" e "Deby" |
 
 - **Indicador visual:** coluna com ordenação ativa mostra seta única indicando a direção; coluna com filtro ativo mostra ícone de filtro preenchido/destacado. Um chip acima da tabela mostra o filtro ativo, com opção de removê-lo.
 - **Troca de fatura:** ao navegar para outra fatura/mês, filtro e ordenação ativos são resetados — a tela sempre inicia "limpa" na fatura nova.
@@ -153,8 +154,19 @@ Antes disso, linhas que representam o pagamento de uma fatura de cartão feito a
 | Empresa | Normalizada a partir da Descrição bruta pelo motor de normalização (regra aprendida + sugestão por palavra-chave) |
 | Parcela | Sempre vazio (Pix/boleto não parcela) |
 | Categoria | Recalculada pelo motor de categorização |
+| Responsável | Inferido do **nome do arquivo**: se o nome contém "deby" (case-insensitive) → "Deby"; caso contrário → "TK" (valor padrão). Exemplo de nome de arquivo da Deby: `nubank_pix_deby_jun_2026`. Essa distinção só se aplica à Fonte 3 — ver regra geral de Responsável logo abaixo |
 | Valor | ← coluna `Valor` (valor absoluto — o sinal já foi usado para definir o Tipo) |
 | *(ignorado)* | `Identificador` — não usado no MVP |
+
+#### Regra geral de Responsável (titular do extrato)
+
+O campo **Responsável** identifica de quem é o extrato/fatura de origem daquela transação — importante porque tanto Thiago quanto a esposa (Deby) sobem seus próprios extratos de conta corrente/Pix para o app, e essa informação ajuda na categorização manual de Pix (ver regra de Pix pessoa física abaixo).
+
+- **Fonte 3 (Nubank extrato/Pix):** Responsável é inferido do nome do arquivo, conforme regra na tabela da Fonte 3 acima (contém "deby" → "Deby"; caso contrário → "TK").
+- **Fontes 1 e 2 (faturas de cartão de crédito):** Responsável é sempre fixo = "TK", já que hoje só existe um cartão de crédito da família, de titularidade do Thiago. Não há necessidade de inferência aqui.
+- Valores possíveis hoje: "TK" e "Deby" (fixos, sem opção de campo livre). Não há seletor manual no fluxo de upload — o valor é sempre derivado automaticamente pelas regras acima.
+- **Coluna na tela de Transações:** Responsável aparece como coluna, com ordenação e filtro de seleção única via dropdown, seguindo o mesmo padrão das demais colunas (Instituição, Formato) — ver seção "Ordenação e filtro na tela de Transações".
+- **Tela de revisão do upload:** a tela de revisão compartilha a mesma estrutura de tabela da tela de Transações — Responsável aparece como coluna ali também, do mesmo jeito, servindo de apoio à categorização manual de Pix. Não há necessidade de ordenação adicional baseada em Responsável — a ordenação já existente (Pix pessoa física no topo) é suficiente.
 
 #### Regra geral de estorno/reembolso
 
@@ -168,6 +180,20 @@ Quando a descrição bruta de uma transação contém um prefixo de app de deliv
 - Cobrança via app de delivery → Empresa = nome do estabelecimento + indicação do app (ex: "Restaurante X (iFood)")
 
 Se as duas formas fossem normalizadas para a mesma Empresa, a regra de Categoria aprendida se propagaria retroativamente entre elas (ex: categorizar um pedido de delivery como "Delivery" faria as idas presenciais ao mesmo restaurante também virarem "Delivery", e vice-versa) — o que não é o comportamento desejado, já que essas duas modalidades normalmente pertencem a categorias diferentes (ex: "Restaurante" vs. "Delivery").
+
+#### Regra de categorização: Pix entre pessoas físicas nunca é automática
+
+Pix trocados com outra pessoa física (ex: dividir plano de saúde com familiares, rateio de restaurante entre amigos) não seguem o motor normal de aprendizado de Categoria, mesmo que a Empresa já tenha sido nomeada antes para aquela mesma pessoa em uma transação anterior. Isso porque a descrição bruta desses Pix (nome da pessoa, CPF mascarado, banco, agência, conta) não muda dependendo do propósito da transação — a mesma pessoa pode mandar Pix por motivos completamente diferentes (plano de saúde em um mês, rateio de restaurante no outro), então a Descrição não é um proxy confiável para Categoria nesses casos, ao contrário de estabelecimentos/merchants.
+
+**Como distinguir Pix pessoa física de Pix para empresa:** via regex, checando se a descrição bruta contém um CNPJ (formato `XX.XXX.XXX/XXXX-XX`, com ou sem pontuação — considerando variações de formatação bancária). Se contém CNPJ → é uma empresa, motor de aprendizado funciona normalmente. Se não contém CNPJ → trata como Pix pessoa física, cai na regra abaixo.
+
+**Comportamento para Pix pessoa física (sem CNPJ):**
+
+- Nunca aplica automaticamente uma Empresa/Categoria com base em regra aprendida, mesmo que exista uma regra salva para aquela pessoa a partir de uma transação anterior.
+- Sempre exige que o usuário defina manualmente a Empresa (nomeada de forma a refletir o propósito da transação, ex: "Irmã X - Plano Saúde Mãe", "Ana - Restaurante") e a Categoria correspondente, transação a transação.
+- Na tela de revisão do upload, essas transações (Pix sem CNPJ) aparecem ordenadas no topo da lista, antes das demais transações já categorizadas automaticamente — sem necessidade de agrupamento visual separado, só ordenação simples. Isso porque o usuário sempre revisa a lista transação a transação, e esses Pix são justamente os que sempre vão exigir atenção manual.
+
+**Reembolsos/estornos entre pessoas (ex: adiantar uma conta de restaurante e ser reembolsado pelos amigos via Pix):** o Pix recebido como reembolso deve ser categorizado na mesma Categoria do gasto original (ex: Restaurante), não em uma categoria à parte. Como o Resumo Mensal já calcula saldo líquido por categoria (saídas − entradas), isso neutraliza automaticamente o gasto adiantado sem exigir lógica adicional de cálculo — só a categorização manual correta no momento da revisão.
 
 #### Criação de categoria nova
 
