@@ -49,6 +49,19 @@ Só categorias com saldo líquido **positivo** aparecem no gráfico (categorias 
 
 **Total do mês:** exibir, junto ao gráfico, a soma de todos os saldos líquidos positivos exibidos (ou seja, o total gasto naquele mês, somando todas as categorias mostradas).
 
+**Drill-down de transações por categoria:** clicar em uma barra do gráfico mostra, na mesma tela (sem navegação), a lista das transações daquela categoria naquele mês, logo abaixo do gráfico.
+
+- A tabela inclui tanto saídas quanto entradas da categoria — precisa refletir o saldo líquido já exibido no gráfico (ex: um estorno/reembolso categorizado ali aparece na lista).
+- Estrutura de colunas igual à tela de Transações — Data, Tipo, Instituição, Formato, Empresa, Parcela, Valor, Responsável —, exceto a coluna Categoria (redundante, já que a seleção já indica qual é).
+- Acima da tabela é exibida a contagem de transações (ex: "12 transações"); não é exibida soma de valores, já mostrada no gráfico.
+- Ordenação fixa por Valor, do maior para o menor — sem ordenação ou filtro configurável pelo usuário nessa tabela.
+- Nenhuma ação é permitida na tabela (sem editar categoria, sem navegar a partir dela) — é só visualização.
+- Interação: as barras têm indicativo visual de que são clicáveis (cursor e destaque de hover); clicar destaca a barra selecionada e abre a tabela; clicar na mesma categoria de novo fecha a tabela; clicar em outra categoria troca a seleção e atualiza a tabela direto, sem precisar fechar antes; trocar de mês reseta a seleção (a tela sempre abre sem categoria selecionada).
+
+**Barra de resumo fixa (sticky):** como a tabela de transações fica abaixo do gráfico, ao rolar a página com a categoria selecionada saindo da área visível, uma barra fina fixa aparece grudada no topo da tela mostrando a categoria selecionada, o valor líquido, a contagem de transações e um botão "Ver gráfico" que rola a página de volta ao topo. A barra só aparece quando a categoria selecionada está fora da área visível, e desaparece automaticamente quando ela volta a ficar visível (scroll de volta) ou quando a seleção é fechada.
+
+Esse comportamento de drill-down + barra fixa é específico do Resumo mensal — não se aplica a outras análises do backlog, a menos que explicitamente estendido no futuro.
+
 ### Formato
 
 Vamos fazer tudo isso num formato web app. Suporte a modo escuro (dark mode) — detalhes do toggle de tema estão na seção Navegação, já que ele vive no menu lateral

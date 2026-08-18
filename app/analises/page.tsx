@@ -1,7 +1,7 @@
 import { readTransactions } from '@/lib/storage';
 import { currentMonthKey, getGroupingMonthKey } from '@/lib/dateUtils';
 import MonthNavigator from '@/components/MonthNavigator';
-import MonthlySummaryChart from '@/components/MonthlySummaryChart';
+import MonthlySummaryAnalysis from '@/components/MonthlySummaryAnalysis';
 
 interface AnalisesPageProps {
   searchParams: Promise<{ month?: string }>;
@@ -67,7 +67,7 @@ export default async function AnalisesPage({ searchParams }: AnalisesPageProps) 
           </span>
         </p>
 
-        <MonthlySummaryChart data={chartData} />
+        <MonthlySummaryAnalysis key={selectedMonth} chartData={chartData} transactions={monthTransactions} />
       </section>
     </div>
   );
