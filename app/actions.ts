@@ -22,7 +22,12 @@ import type { ParseError, SourceId } from '@/lib/sources';
 import { extractMonthKeyFromFilename } from '@/lib/csvHelpers';
 import { containsCnpj } from '@/lib/cnpj';
 import { getExtratoReferenceMonth } from '@/lib/dateUtils';
-import { getLearnedCategory, learnAndApplyRetroactively, suggestCategory } from '@/lib/categorization';
+import {
+  INTERNAL_TRANSFER_CATEGORY,
+  getLearnedCategory,
+  learnAndApplyRetroactively,
+  suggestCategory,
+} from '@/lib/categorization';
 import { learnAndApplyCompanyRetroactively, normalizeDescriptionKey, suggestCompany } from '@/lib/companyNormalization';
 import { inferResponsibleFromFilename } from '@/lib/responsible';
 import {
@@ -227,12 +232,16 @@ export async function confirmTransactionsAction(
 // mesma regra de aprendizado retroativo: corrige essa transação, aprende a
 // regra para a empresa, e aplica em todas as outras transações da mesma empresa.
 //
-// Exceção: se a transação editada não tem Empresa definida, não existe
+// Exceção 1: se a transação editada não tem Empresa definida, não existe
 // "empresa" nenhuma para aprender ou para casar com outras transações — a
 // mudança de categoria vale só para esta transação específica (edição
 // direta por id), sem tocar em category-rules.json nem em nenhuma outra
 // transação (mesmo que também estejam sem empresa: não têm relação entre si
 // só por isso).
+// Exceção 2: atribuir "Transferência interna" nunca aprende nem aplica
+// regra nenhuma — é sempre uma categorização manual, transação por
+// transação, mesmo vindo repetidamente da mesma Empresa (ver
+// INTERNAL_TRANSFER_CATEGORY em lib/categorization.ts).
 export async function updateTransactionCategoryAction(
   transactionId: string,
   newCategory: string
@@ -242,7 +251,7 @@ export async function updateTransactionCategoryAction(
   const target = transactions.find((t) => t.id === transactionId);
   if (!target) return;
 
-  if (target.company.trim() === '') {
+  if (target.company.trim() === '' || newCategory === INTERNAL_TRANSFER_CATEGORY) {
     const updatedTransactions = transactions.map((t) =>
       t.id === transactionId ? { ...t, category: newCategory } : t
     );
@@ -253,7 +262,17 @@ export async function updateTransactionCategoryAction(
   }
 
   const rules = await readCategoryRules();
-  const result = learnAndApplyRetroactively(target.company, newCategory, rules, transactions);
+  // Pré-aplica a edição na própria transação antes de rodar a varredura por
+  // empresa: garante que ELA seja atualizada mesmo se sua categoria atual
+  // for "Transferência interna" (edição direta sempre vale). Sem isso, a
+  // proteção de applyCategoryToSameCompany contra sobrescrever transações
+  // marcadas como "Transferência interna" — pensada pra blindar as OUTRAS
+  // transações da mesma empresa — acabaria blindando esta também, da sua
+  // própria edição.
+  const transactionsWithEdit = transactions.map((t) =>
+    t.id === transactionId ? { ...t, category: newCategory } : t
+  );
+  const result = learnAndApplyRetroactively(target.company, newCategory, rules, transactionsWithEdit);
 
   await writeCategoryRules(result.rules);
   await writeTransactions(result.transactions);

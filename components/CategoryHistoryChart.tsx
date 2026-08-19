@@ -2,12 +2,22 @@
 
 // Gráfico de linhas do "Histórico por categoria": saldo líquido por mês,
 // para todos os meses disponíveis nos dados. A linha "Saldo líquido" (a
-// agregada, de todas as categorias) é sempre visível; cada categoria
-// selecionada (estado guardado por
-// CategoryHistoryAnalysis) vira sua própria linha, com cor distinta. Usa
-// Recharts, mesma biblioteca do Resumo mensal (ver MonthlySummaryChart),
-// pelos mesmos motivos: desenha o SVG e cuida da interatividade (tooltip)
-// por baixo dos panos.
+// agregada, de todas as categorias) só aparece quando NENHUMA categoria
+// está selecionada — com 1+ categoria(s) selecionada(s), ela some por
+// completo (não fica em estilo secundário/tracejado): sua ordem de
+// grandeza costuma ser bem maior que a de uma categoria individual, o que
+// achatava visualmente as flutuações das categorias quando as duas
+// apareciam juntas. Como o eixo Y do Recharts calcula sua escala a partir
+// só das linhas de fato renderizadas, tirar a linha agregada do ar também
+// resolve a escala sozinho — sem precisar fixar um domain manualmente (ver
+// hasSelection abaixo). Desmarcar todas as categorias volta a mostrar a
+// linha "Saldo líquido" automaticamente, sem precisar de um botão "limpar
+// seleção" — é só a mesma condição (hasSelection) virando falsa de novo.
+//
+// Cada categoria selecionada (estado guardado por CategoryHistoryAnalysis)
+// vira sua própria linha, com cor distinta. Usa Recharts, mesma biblioteca
+// do Resumo mensal (ver MonthlySummaryChart), pelos mesmos motivos: desenha
+// o SVG e cuida da interatividade (tooltip) por baixo dos panos.
 //
 // Cor por categoria: cada categoria conhecida recebe um índice FIXO (ver
 // categoryColorIndex, montado por CategoryHistoryAnalysis a partir da lista
@@ -46,7 +56,6 @@ const CHART_PALETTES = {
     tooltipBorder: '#e1e0d9',
     labelText: '#52514e',
     totalMain: '#2a78d6',
-    totalReference: '#c3c2b7',
     categories: ['#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'],
   },
   dark: {
@@ -57,7 +66,6 @@ const CHART_PALETTES = {
     tooltipBorder: '#3a3a38',
     labelText: '#d4d3ce',
     totalMain: '#5b9bdb',
-    totalReference: '#52514e',
     categories: ['#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'],
   },
 } as const;
@@ -122,16 +130,17 @@ export default function CategoryHistoryChart({
           }}
         />
         {hasSelection && <Legend wrapperStyle={{ fontSize: 12, color: palette.labelText }} />}
-        <Line
-          dataKey="__total"
-          name="Saldo líquido"
-          stroke={hasSelection ? palette.totalReference : palette.totalMain}
-          strokeWidth={hasSelection ? 1.5 : 2}
-          strokeDasharray={hasSelection ? '4 4' : undefined}
-          dot={false}
-          activeDot={{ r: 4 }}
-          isAnimationActive={false}
-        />
+        {!hasSelection && (
+          <Line
+            dataKey="__total"
+            name="Saldo líquido"
+            stroke={palette.totalMain}
+            strokeWidth={2}
+            dot={false}
+            activeDot={{ r: 4 }}
+            isAnimationActive={false}
+          />
+        )}
         {selectedCategories.map((category) => (
           <Line
             key={category}

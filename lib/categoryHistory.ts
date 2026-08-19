@@ -4,6 +4,7 @@
 // saldo líquido de cada categoria naquele mês. É a base dos dados do
 // gráfico de linhas em app/analises/historico-categoria/page.tsx.
 
+import { INTERNAL_TRANSFER_CATEGORY } from './categorization';
 import { formatMonthLabel, getGroupingMonthKey } from './dateUtils';
 import type { Transaction } from './types';
 
@@ -30,6 +31,15 @@ function netDelta(transaction: Transaction): number {
 // categoria"). Diferente do Resumo mensal, não há filtro de saldo positivo
 // aqui — a proposta é mostrar a evolução real, incluindo meses em que uma
 // categoria fechou negativa (ex: um estorno maior que o gasto do mês).
+//
+// "Transferência interna" é excluída só do TOTAL agregado (mesma regra do
+// Resumo mensal e de Transações — é movimentação entre "bolsos", não gasto
+// nem renda real, ver INTERNAL_TRANSFER_CATEGORY em lib/categorization.ts).
+// Ela NÃO é excluída de byCategory: sem tratamento especial, a categoria
+// "Transferência interna" continua com seu próprio saldo líquido real por
+// mês, disponível como qualquer outra caso o usuário a selecione no
+// dropdown (ver collectKnownCategories em lib/categoryFilter.ts, que
+// também não faz exceção pra ela).
 export function buildCategoryHistory(transactions: Transaction[]): MonthlyCategoryPoint[] {
   const monthKeys = Array.from(new Set(transactions.map(getGroupingMonthKey))).sort();
 
@@ -42,19 +52,11 @@ export function buildCategoryHistory(transactions: Transaction[]): MonthlyCatego
       const delta = netDelta(transaction);
       const categoryLabel = transaction.category || NO_CATEGORY_LABEL;
       byCategory[categoryLabel] = (byCategory[categoryLabel] ?? 0) + delta;
-      total += delta;
+      if (transaction.category !== INTERNAL_TRANSFER_CATEGORY) {
+        total += delta;
+      }
     }
 
     return { monthKey, label: formatMonthLabel(monthKey), total, byCategory };
   });
-}
-
-// Todas as categorias já usadas em alguma transação, ordenadas
-// alfabeticamente — exclui "Sem categoria" de propósito: essa opção é
-// adicionada separadamente pelos componentes que montam o seletor (mesmo
-// padrão da tela de Transações, ver components/TransactionsTable.tsx).
-export function collectKnownCategories(transactions: Transaction[]): string[] {
-  return Array.from(new Set(transactions.map((t) => t.category).filter((c) => c !== ''))).sort((a, b) =>
-    a.localeCompare(b, 'pt-BR')
-  );
 }

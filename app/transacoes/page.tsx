@@ -1,5 +1,7 @@
 import { readTransactions } from '@/lib/storage';
 import { currentMonthKey, getGroupingMonthKey } from '@/lib/dateUtils';
+import { INTERNAL_TRANSFER_CATEGORY } from '@/lib/categorization';
+import { collectKnownCategories } from '@/lib/categoryFilter';
 import MonthNavigator from '@/components/MonthNavigator';
 import TransactionsTable from '@/components/TransactionsTable';
 
@@ -25,9 +27,10 @@ export default async function TransacoesPage({ searchParams }: TransacoesPagePro
   const mostRecentMonth = monthKeysWithData[monthKeysWithData.length - 1] ?? currentMonthKey();
   const selectedMonth = month ?? mostRecentMonth;
 
-  const allCategories = Array.from(
-    new Set(allTransactions.map((t) => t.category).filter((c) => c !== ''))
-  ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  // Fonte compartilhada com o dropdown de seleção do Histórico por
+  // categoria (ver lib/categoryFilter.ts) — garante que as duas listas
+  // nunca divirjam.
+  const allCategories = collectKnownCategories(allTransactions);
 
   const allCompanies = Array.from(
     new Set(allTransactions.map((t) => t.company).filter((c) => c !== ''))
@@ -36,12 +39,15 @@ export default async function TransacoesPage({ searchParams }: TransacoesPagePro
   const monthTransactions = allTransactions.filter((t) => getGroupingMonthKey(t) === selectedMonth);
 
   // Saldo líquido do mês = soma das saídas − soma das entradas de TODAS as
-  // transações do mês (independente do filtro selecionado na tabela) —
-  // mesmo cálculo usado no Resumo mensal (ver app/analises/page.tsx).
-  const monthNetTotal = monthTransactions.reduce(
-    (total, t) => total + (t.type === 'saida' ? t.value : -t.value),
-    0
-  );
+  // transações do mês (independente do filtro selecionado na tabela),
+  // SEMPRE excluindo "Transferência interna" — é movimentação entre
+  // "bolsos", não gasto nem renda real (ver INTERNAL_TRANSFER_CATEGORY em
+  // lib/categorization.ts). A transação continua aparecendo normalmente na
+  // tabela abaixo, só não entra nessa soma. Mesmo cálculo usado no Resumo
+  // mensal (ver app/analises/resumo-mensal/page.tsx).
+  const monthNetTotal = monthTransactions
+    .filter((t) => t.category !== INTERNAL_TRANSFER_CATEGORY)
+    .reduce((total, t) => total + (t.type === 'saida' ? t.value : -t.value), 0);
 
   return (
     <div>

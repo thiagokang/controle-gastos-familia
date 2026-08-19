@@ -23,6 +23,18 @@
 import { KEYWORD_CATEGORY_RULES } from './keywords';
 import type { CategoryRules, SuggestionSource, Transaction } from './types';
 
+// Categoria especial para Pix pessoa-a-pessoa (ex: cônjuge transferindo pro
+// fundo comum) e transferências entre contas próprias — dinheiro mudando de
+// "bolso", não gasto nem renda real. Categorização é SEMPRE manual,
+// transação por transação: nunca participa do aprendizado/propagação
+// automática por Empresa, mesmo vindo repetidamente do mesmo remetente
+// (mesma exceção que já vale para Pix pessoa física em geral — ver
+// docs/PRD.md e isPixPessoaFisica em lib/types.ts). Também é totalmente
+// excluída de qualquer cálculo agregado (Resumo mensal, Histórico por
+// categoria, saldo líquido do mês) — ver app/analises/resumo-mensal/page.tsx,
+// app/transacoes/page.tsx e lib/categoryHistory.ts.
+export const INTERNAL_TRANSFER_CATEGORY = 'Transferência interna';
+
 // Normaliza o nome da empresa para usar como chave de comparação/armazenamento.
 // Sem isso, "Uber", "UBER" e " uber " seriam tratados como empresas diferentes
 // e o aprendizado de categoria não funcionaria de forma confiável.
@@ -44,9 +56,13 @@ export function suggestCategory(
     return { category: '', source: 'sem-sugestao' };
   }
 
-  // Prioridade 1: categoria já aprendida para essa empresa.
+  // Prioridade 1: categoria já aprendida para essa empresa. "Transferência
+  // interna" nunca é sugerida automaticamente, mesmo que exista uma regra
+  // aprendida pra ela (de antes dessa exceção existir, ou de uma edição
+  // manual de Empresa) — é sempre uma escolha manual, transação por
+  // transação (ver INTERNAL_TRANSFER_CATEGORY acima).
   const learnedCategory = learnedRules[normalizedCompany];
-  if (learnedCategory) {
+  if (learnedCategory && learnedCategory !== INTERNAL_TRANSFER_CATEGORY) {
     return { category: learnedCategory, source: 'aprendida' };
   }
 
@@ -72,7 +88,10 @@ export function suggestCategory(
 export function getLearnedCategory(company: string, rules: CategoryRules): string | null {
   const normalizedCompany = normalizeCompanyName(company);
   if (normalizedCompany === '') return null;
-  return rules[normalizedCompany] ?? null;
+  const learned = rules[normalizedCompany] ?? null;
+  // Mesma exceção de suggestCategory: nunca "herda" Transferência interna
+  // automaticamente via regra aprendida.
+  return learned === INTERNAL_TRANSFER_CATEGORY ? null : learned;
 }
 
 // Núcleo puro da correção retroativa: aplica newCategory a toda linha cuja
@@ -92,8 +111,22 @@ export function applyCategoryToSameCompany<T extends { company: string; category
   const normalizedCompany = normalizeCompanyName(company);
   if (normalizedCompany === '') return rows;
 
+  // "Transferência interna" nunca se propaga para outras linhas da mesma
+  // empresa — é sempre uma categorização manual, transação por transação
+  // (ver INTERNAL_TRANSFER_CATEGORY). Quem chama esta função e precisa
+  // atualizar a própria linha editada pra esse valor já faz isso antes de
+  // chamar (ver handleCategoryChange em UploadFlow.tsx e
+  // updateTransactionCategoryAction em app/actions.ts).
+  if (newCategory === INTERNAL_TRANSFER_CATEGORY) return rows;
+
   return rows.map((row) =>
-    normalizeCompanyName(row.company) === normalizedCompany && row.category !== newCategory
+    normalizeCompanyName(row.company) === normalizedCompany &&
+    row.category !== newCategory &&
+    // Linhas já marcadas manualmente como "Transferência interna" nunca são
+    // sobrescritas por essa varredura automática — só uma edição direta
+    // daquela própria linha (que já pré-aplica a mudança antes de chamar
+    // esta função) consegue tirá-las dessa categoria.
+    row.category !== INTERNAL_TRANSFER_CATEGORY
       ? { ...row, category: newCategory }
       : row
   );
@@ -124,10 +157,13 @@ export function learnAndApplyRetroactively(
     return { rules: currentRules, transactions: currentTransactions, retroactiveCount: 0 };
   }
 
-  const updatedRules: CategoryRules = {
-    ...currentRules,
-    [normalizedCompany]: newCategory,
-  };
+  // "Transferência interna" nunca vira regra aprendida (ver comentário de
+  // applyCategoryToSameCompany, chamada logo abaixo, que também não propaga
+  // esse valor a nenhuma outra transação).
+  const updatedRules: CategoryRules =
+    newCategory === INTERNAL_TRANSFER_CATEGORY
+      ? currentRules
+      : { ...currentRules, [normalizedCompany]: newCategory };
 
   const updatedTransactions = applyCategoryToSameCompany(currentTransactions, company, newCategory);
   const retroactiveCount = updatedTransactions.reduce(

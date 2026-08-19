@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { readTransactions } from '@/lib/storage';
 import { currentMonthKey, getGroupingMonthKey } from '@/lib/dateUtils';
+import { INTERNAL_TRANSFER_CATEGORY } from '@/lib/categorization';
 import { NO_CATEGORY_FILTER } from '@/lib/categoryFilter';
 import MonthNavigator from '@/components/MonthNavigator';
 import MonthlySummaryAnalysis from '@/components/MonthlySummaryAnalysis';
@@ -30,13 +31,22 @@ export default async function ResumoMensalPage({ searchParams }: ResumoMensalPag
   // mesmo problema de parcelas caindo todas no mês da compra original.
   const monthTransactions = allTransactions.filter((t) => getGroupingMonthKey(t) === selectedMonth);
 
+  // "Transferência interna" é totalmente excluída de todo cálculo agregado
+  // do mês (barra por categoria, saldo líquido) — é movimentação entre
+  // "bolsos", não gasto nem renda real (ver INTERNAL_TRANSFER_CATEGORY em
+  // lib/categorization.ts). A transação continua aparecendo normalmente na
+  // tela de Transações, só não entra em nenhuma soma aqui.
+  const monthTransactionsForTotals = monthTransactions.filter(
+    (t) => t.category !== INTERNAL_TRANSFER_CATEGORY
+  );
+
   // Saldo líquido por categoria = soma das saídas − soma das entradas.
   // Isso cobre o caso de um estorno cancelar um gasto anterior (ex: uma
   // anuidade de cartão estornada): se a entrada do estorno for categorizada
   // na mesma categoria do gasto original, o saldo líquido reflete
   // corretamente que aquele gasto não se concretizou.
   const netByCategory = new Map<string, number>();
-  for (const transaction of monthTransactions) {
+  for (const transaction of monthTransactionsForTotals) {
     const categoryLabel = transaction.category || NO_CATEGORY_LABEL;
     const delta = transaction.type === 'saida' ? transaction.value : -transaction.value;
     netByCategory.set(categoryLabel, (netByCategory.get(categoryLabel) ?? 0) + delta);
@@ -61,13 +71,14 @@ export default async function ResumoMensalPage({ searchParams }: ResumoMensalPag
     .sort((a, b) => a.total - b.total);
 
   // Saldo líquido do mês = saldo líquido de TODAS as transações do mês
-  // (categorizadas ou não, incluindo "Sem categoria"), sem excluir
-  // categorias negativas da soma — mesmo cálculo e mesmo valor exibido em
-  // Transações e na linha "Saldo líquido" do Histórico por categoria. Por
-  // decisão de produto, esse valor pode divergir da soma visual das barras
-  // exibidas (categorias negativas entram aqui, mas não viram barra) — é
-  // esperado, não é bug (ver docs/PRD.md, "Resumo mensal").
-  const monthNetTotal = monthTransactions.reduce(
+  // (categorizadas ou não, incluindo "Sem categoria", mas SEMPRE excluindo
+  // "Transferência interna" — ver monthTransactionsForTotals acima), sem
+  // excluir categorias negativas da soma — mesmo cálculo e mesmo valor
+  // exibido em Transações e na linha "Saldo líquido" do Histórico por
+  // categoria. Por decisão de produto, esse valor pode divergir da soma
+  // visual das barras exibidas (categorias negativas entram aqui, mas não
+  // viram barra) — é esperado, não é bug (ver docs/PRD.md, "Resumo mensal").
+  const monthNetTotal = monthTransactionsForTotals.reduce(
     (total, t) => total + (t.type === 'saida' ? t.value : -t.value),
     0
   );

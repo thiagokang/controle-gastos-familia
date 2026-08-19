@@ -1,5 +1,6 @@
 import { readTransactions } from '@/lib/storage';
-import { buildCategoryHistory, collectKnownCategories } from '@/lib/categoryHistory';
+import { buildCategoryHistory } from '@/lib/categoryHistory';
+import { collectKnownCategories } from '@/lib/categoryFilter';
 import CategoryHistoryAnalysis from '@/components/CategoryHistoryAnalysis';
 
 // Segunda análise da seção Análises: evolução do saldo líquido por
