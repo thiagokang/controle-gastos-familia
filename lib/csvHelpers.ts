@@ -26,19 +26,46 @@ export function normalizeHeader(header: string): string {
   return stripAccents(header).trim().toLowerCase();
 }
 
+const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+function isLeapYear(year: number): boolean {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
+// Valida mês (1-12) e dia (1 até o último dia daquele mês, considerando
+// fevereiro em ano bissexto) — não valida o ano em si, qualquer número de 4
+// dígitos passa. Usada por parseFlexibleDate para rejeitar datas
+// sintaticamente parecidas com uma data mas com dia/mês fora do intervalo
+// real (ex: "31/02/2026", "32/13/2026") — sem essa checagem, o regex sozinho
+// deixa esses casos passarem como se fossem válidos.
+function isValidCalendarDate(month: number, day: number, year: number): boolean {
+  if (month < 1 || month > 12) return false;
+  const lastDayOfMonth = month === 2 && isLeapYear(year) ? 29 : DAYS_IN_MONTH[month - 1];
+  return day >= 1 && day <= lastDayOfMonth;
+}
+
 // Aceita tanto "AAAA-MM-DD" quanto "DD/MM/AAAA" (formato comum de extratos
 // brasileiros) e sempre devolve "AAAA-MM-DD", usado em todo o resto do app
-// para ordenar e agrupar transações por mês.
+// para ordenar e agrupar transações por mês. Nos dois formatos, valida que
+// dia e mês formam uma data de calendário real (ver isValidCalendarDate) —
+// uma data como "31/02/2026" é rejeitada (devolve null) em vez de virar uma
+// transação com data impossível.
 export function parseFlexibleDate(rawDate: string): string | null {
   const trimmed = rawDate.trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    return trimmed;
+
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    return isValidCalendarDate(Number(month), Number(day), Number(year)) ? trimmed : null;
   }
+
   const brMatch = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (brMatch) {
     const [, day, month, year] = brMatch;
+    if (!isValidCalendarDate(Number(month), Number(day), Number(year))) return null;
     return `${year}-${month}-${day}`;
   }
+
   return null;
 }
 
@@ -66,6 +93,16 @@ export function extractMonthKeyFromFilename(filename: string): string | null {
   }
 
   return null;
+}
+
+// Reconstrói (melhor esforço) o conteúdo bruto de uma linha do CSV a partir
+// da linha já parseada pelo papaparse (um objeto por linha, chaves na ordem
+// das colunas do arquivo). Usada só para mostrar contexto ao usuário quando
+// uma linha é descartada por erro (ver ParseError em ./sources/types) — não
+// é garantido bater byte-a-byte com o arquivo original (aspas/espaçamento
+// podem diferir), mas é o suficiente pra reconhecer qual linha era.
+export function reconstructRawLine(rawRow: Record<string, string>, delimiter: string): string {
+  return Object.values(rawRow).join(delimiter);
 }
 
 // Aceita valores com separador decimal "," ou "." (com ou sem separador de

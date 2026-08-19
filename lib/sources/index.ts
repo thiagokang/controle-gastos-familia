@@ -29,4 +29,4 @@ export const CSV_SOURCES: Record<SourceId, CsvSource> = {
 
 export const CSV_SOURCE_LIST: CsvSource[] = Object.values(CSV_SOURCES);
 
-export type { CsvSource, SourceId } from './types';
+export type { CsvSource, ParseError, SourceId } from './types';

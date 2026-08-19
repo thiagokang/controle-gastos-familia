@@ -4,7 +4,11 @@ import MonthNavigator from '@/components/MonthNavigator';
 import TransactionsTable from '@/components/TransactionsTable';
 
 interface TransacoesPageProps {
-  searchParams: Promise<{ month?: string }>;
+  // "category" só é lida na primeira renderização da tabela (ver
+  // initialCategoryFilter em components/TransactionsTable.tsx) — usada
+  // quando se chega aqui a partir de um link externo já filtrado (ex: o
+  // aviso de categorias com saldo negativo do Resumo mensal).
+  searchParams: Promise<{ month?: string; category?: string }>;
 }
 
 // Tela principal: lista as transações já confirmadas, de um mês por vez. O
@@ -14,7 +18,7 @@ interface TransacoesPageProps {
 // TransactionsTable — o key={selectedMonth} abaixo garante que esse estado
 // reseta pro padrão toda vez que o usuário troca de mês/fatura.
 export default async function TransacoesPage({ searchParams }: TransacoesPageProps) {
-  const { month } = await searchParams;
+  const { month, category } = await searchParams;
   const allTransactions = await readTransactions();
 
   const monthKeysWithData = Array.from(new Set(allTransactions.map(getGroupingMonthKey))).sort();
@@ -54,10 +58,11 @@ export default async function TransacoesPage({ searchParams }: TransacoesPagePro
       </div>
 
       <TransactionsTable
-        key={selectedMonth}
+        key={`${selectedMonth}:${category ?? ''}`}
         transactions={monthTransactions}
         knownCompanies={allCompanies}
         knownCategories={allCategories}
+        initialCategoryFilter={category}
       />
     </div>
   );

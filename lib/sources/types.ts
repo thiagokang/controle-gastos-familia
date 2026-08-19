@@ -22,9 +22,24 @@ export interface ParsedCsvRow {
   value: number; // sempre positivo
 }
 
+// Um descarte de linha durante o parsing do CSV — a linha não pôde virar
+// transação. "line" é o número da linha no arquivo (null quando a falha é
+// do arquivo inteiro, antes até de processar linha a linha — ex: fonte não
+// reconhecida, mês não identificável no nome do arquivo). "raw" é a melhor
+// reconstrução possível do conteúdo original da linha (colunas brutas
+// juntadas pelo separador da própria fonte) — serve de apoio visual pro
+// usuário identificar qual linha era; não é garantidamente idêntica
+// byte-a-byte ao arquivo original. "reason" é o motivo específico do
+// descarte, sem repetir "Linha N:" (isso já é o campo "line", separado).
+export interface ParseError {
+  line: number | null;
+  raw: string;
+  reason: string;
+}
+
 export interface ParseCsvResult {
   rows: ParsedCsvRow[];
-  errors: string[]; // mensagens legíveis, referenciando o número da linha do arquivo
+  errors: ParseError[];
 }
 
 // O "contrato" que cada fonte precisa cumprir: um rótulo pra aparecer no

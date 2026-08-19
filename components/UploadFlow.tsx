@@ -12,8 +12,9 @@ import { useRouter } from 'next/navigation';
 import { parseCsvAction, confirmTransactionsAction, getLearnedCategoryForCompanyAction } from '@/app/actions';
 import { applyCategoryToSameCompany, normalizeCompanyName } from '@/lib/categorization';
 import { CSV_SOURCE_LIST } from '@/lib/sources';
-import type { SourceId } from '@/lib/sources';
+import type { ParseError, SourceId } from '@/lib/sources';
 import type { ReviewRow } from '@/lib/types';
+import CollapsibleWarning from './CollapsibleWarning';
 import ReviewTable from './ReviewTable';
 
 function sortAlphabetically(values: string[]): string[] {
@@ -50,7 +51,7 @@ export default function UploadFlow({
   const [isParsing, setIsParsing] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [reviewRows, setReviewRows] = useState<ReviewRow[] | null>(null);
-  const [parseErrors, setParseErrors] = useState<string[]>([]);
+  const [parseErrors, setParseErrors] = useState<ParseError[]>([]);
   // Listas de empresas/categorias oferecidas nos dropdowns desta sessão de
   // revisão. Começam com o que já existia salvo, mas crescem na hora quando
   // o usuário cria uma opção nova em qualquer linha — assim ela já aparece
@@ -224,25 +225,39 @@ export default function UploadFlow({
         >
           {isParsing ? 'Lendo arquivo...' : 'Enviar e revisar'}
         </button>
-
-        {parseErrors.length > 0 && (
-          <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-red-600 dark:text-red-400">
-            {parseErrors.map((error) => (
-              <li key={error}>{error}</li>
-            ))}
-          </ul>
-        )}
       </div>
     );
   }
 
-  // Passo 2: revisão de Empresa e Categoria antes de confirmar.
+  // Passo 2: revisão de Empresa e Categoria antes de confirmar. O aviso de
+  // linhas inválidas (se houver) fica sempre visível aqui — mesmo
+  // componente de aviso colapsável usado pelo aviso de categorias com saldo
+  // negativo do Resumo mensal (ver CollapsibleWarning), pra manter a
+  // experiência consistente entre as duas telas.
   return (
     <div>
       {parseErrors.length > 0 && (
-        <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-          {parseErrors.length} linha(s) do arquivo não puderam ser lidas e foram ignoradas.
-        </div>
+        <CollapsibleWarning
+          summary={`⚠️ ${parseErrors.length} linha(s) do arquivo não puderam ser lidas e foram ignoradas`}
+        >
+          <ul className="divide-y divide-amber-200 dark:divide-amber-900">
+            {parseErrors.map((error, index) => (
+              <li key={index} className="py-1.5 text-sm first:pt-0 last:pb-0">
+                <div className="font-medium">
+                  {error.line !== null ? `Linha ${error.line}` : 'Arquivo'}: {error.reason}
+                </div>
+                {error.raw && (
+                  <div
+                    className="mt-0.5 truncate font-mono text-xs text-amber-700/80 dark:text-amber-400/80"
+                    title={error.raw}
+                  >
+                    {error.raw}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </CollapsibleWarning>
       )}
 
       {/* A tabela rola internamente (veja o max-h + overflow-auto dentro de

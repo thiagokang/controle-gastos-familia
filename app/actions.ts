@@ -18,7 +18,7 @@
 import { revalidatePath } from 'next/cache';
 import { randomUUID } from 'crypto';
 import { CSV_SOURCES } from '@/lib/sources';
-import type { SourceId } from '@/lib/sources';
+import type { ParseError, SourceId } from '@/lib/sources';
 import { extractMonthKeyFromFilename } from '@/lib/csvHelpers';
 import { containsCnpj } from '@/lib/cnpj';
 import { getExtratoReferenceMonth } from '@/lib/dateUtils';
@@ -43,15 +43,15 @@ import type { ReviewRow, Responsible, Transaction, TransactionType } from '@/lib
 export async function parseCsvAction(
   sourceId: SourceId,
   formData: FormData
-): Promise<{ rows: ReviewRow[]; errors: string[] }> {
+): Promise<{ rows: ReviewRow[]; errors: ParseError[] }> {
   const file = formData.get('file');
   if (!(file instanceof File)) {
-    return { rows: [], errors: ['Nenhum arquivo foi enviado.'] };
+    return { rows: [], errors: [{ line: null, raw: '', reason: 'Nenhum arquivo foi enviado.' }] };
   }
 
   const source = CSV_SOURCES[sourceId];
   if (!source) {
-    return { rows: [], errors: ['Fonte do arquivo não reconhecida.'] };
+    return { rows: [], errors: [{ line: null, raw: '', reason: 'Fonte do arquivo não reconhecida.' }] };
   }
 
   // Faturas de cartão (Fontes 1 e 2) não trazem, em nenhuma coluna do CSV,
@@ -68,7 +68,11 @@ export async function parseCsvAction(
       return {
         rows: [],
         errors: [
-          `Não foi possível identificar o mês da fatura no nome do arquivo "${file.name}". Renomeie o arquivo incluindo o ano e o mês (ex: "Fatura_2026-07-10.csv") e envie novamente.`,
+          {
+            line: null,
+            raw: '',
+            reason: `Não foi possível identificar o mês da fatura no nome do arquivo "${file.name}". Renomeie o arquivo incluindo o ano e o mês (ex: "Fatura_2026-07-10.csv") e envie novamente.`,
+          },
         ],
       };
     }

@@ -1,4 +1,9 @@
-> **Nota sobre este documento:** o Notion (página ["Registrar gasto, categorizar e um resumo mensal"](https://app.notion.com/p/39fee8fb540380c1b45fc293cfca611c), `page_id 39fee8fb-5403-80c1-b45f-c293cfca611c`) é a fonte da verdade para o PRD. Este arquivo (`docs/PRD.md`) é sempre um espelho sincronizado a partir dele — nunca deve ser editado de forma independente. Sempre que o Notion mudar, use um prompt de sincronização dedicado (pedindo para puxar o Notion e realinhar este arquivo) para trazer `docs/PRD.md` de volta ao alinhamento.
+> **Nota sobre este documento:** o Notion é a fonte da verdade para o PRD — o conteúdo é organizado em múltiplas páginas dentro do roadmap do produto no Notion. Este arquivo (`docs/PRD.md`) é sempre um espelho sincronizado a partir delas — nunca deve ser editado de forma independente. Sempre que o Notion mudar, use um prompt de sincronização dedicado (pedindo para puxar o Notion e realinhar este arquivo) para trazer `docs/PRD.md` de volta ao alinhamento.
+>
+> Páginas-fonte sincronizadas até agora:
+> - [Registrar gasto, categorizar e um resumo mensal](https://app.notion.com/p/39fee8fb540380c1b45fc293cfca611c) (`page_id 39fee8fb-5403-80c1-b45f-c293cfca611c`) — registro de gasto, resumo mensal, ordenação/filtro em Transações, fontes de dados e regras de importação
+> - [Histórico por categoria](https://app.notion.com/p/39fee8fb540380179021d340d95101a8) (`page_id 39fee8fb-5403-8017-9021-d340d95101a8`) — segunda análise da seção Análises
+> - [Arquitetura do produto](https://app.notion.com/p/3c0ee8fb54038155928be282aca103b9) (`page_id 3c0ee8fb-5403-8155-928b-e282aca103b9`) — formato, stack técnica e navegação (transversal ao produto, movido para fora da página de registro de gasto)
 
 # Objetivo
 
@@ -45,9 +50,11 @@ Vamos começar com um resumo dos gastos feitos naquele mês, onde cada categoria
 
 **Regra de cálculo:** para cada categoria, o valor exibido é o **saldo líquido** = soma das saídas − soma das entradas daquela categoria, no mês. Isso cobre casos como um estorno cancelando um gasto anterior (ex: anuidade do cartão estornada) — desde que a entrada seja categorizada na mesma categoria do gasto original, o saldo líquido reflete corretamente que aquele gasto não se concretizou.
 
-Só categorias com saldo líquido **positivo** aparecem no gráfico (categorias com saldo zero ou negativo — como uma entrada de dinheiro sem gasto correspondente no mês, ex: restituição de Imposto de Renda categorizada como "Receita" — não são exibidas, já que o resumo é sobre gastos, não sobre entradas de dinheiro).
+Só categorias com saldo líquido positivo aparecem como barra no gráfico. Categorias com saldo líquido zero ou negativo (ex: reembolso maior que o gasto do mês naquela categoria, ou uma entrada de dinheiro sem gasto correspondente) não aparecem misturadas como barra — uma barra "pra trás"/negativa competiria visualmente com as barras de gasto normal.
 
-**Total do mês:** exibir, junto ao gráfico, a soma de todos os saldos líquidos positivos exibidos (ou seja, o total gasto naquele mês, somando todas as categorias mostradas).
+**Saldo líquido do mês:** exibido junto ao gráfico, é o saldo líquido de **todas** as transações do mês (categorizadas ou não, incluindo "Sem categoria"), sem excluir categorias negativas da soma — mesmo cálculo e mesmo valor exibido em Transações e na linha "Saldo líquido" do gráfico de Histórico por categoria. Por decisão de produto, esse valor pode divergir da soma visual das barras exibidas (já que categorias negativas entram no cálculo do total mas não aparecem como barra) — isso é esperado, não é um bug.
+
+**Aviso de categorias com saldo negativo:** quando existe 1+ categoria com saldo líquido negativo no mês (portanto ausente do gráfico de barras), um aviso aparece acima do gráfico mostrando a contagem (ex: "⚠️ 2 categorias com saldo negativo neste mês"). O aviso começa recolhido; ao clicar, expande e lista as categorias negativas, ordenadas por valor (mais negativa primeiro), com seus respectivos valores. Cada categoria listada é clicável e leva diretamente para a aba Transações, já filtrada por essa categoria + mês, para o usuário investigar e corrigir a categorização se necessário (a correção em si acontece só na aba Transações, nunca dentro de Análises). Se não houver nenhuma categoria negativa no mês, o aviso não aparece.
 
 **Drill-down de transações por categoria:** clicar em uma barra do gráfico mostra, na mesma tela (sem navegação), a lista das transações daquela categoria naquele mês, logo abaixo do gráfico.
 
@@ -60,32 +67,33 @@ Só categorias com saldo líquido **positivo** aparecem no gráfico (categorias 
 
 **Barra de resumo fixa (sticky):** como a tabela aparece bem abaixo do gráfico, ao rolar a página e a categoria selecionada sair da área visível, uma barra fina e fixa aparece grudada no topo absoluto da tela, mostrando: nome da categoria, valor líquido e contagem de transações. A barra inclui um botão "Ver gráfico ↑" que rola a página de volta ao topo absoluto (onde fica o cabeçalho "Análises" e a navegação de mês). A barra desaparece automaticamente quando a categoria selecionada volta a ficar visível na tela, ou quando a seleção é limpa (fechada).
 
-Esse comportamento de drill-down + barra fixa é específico do Resumo mensal — não se aplica a outras análises do backlog, a menos que explicitamente estendido no futuro.
+Esse comportamento de drill-down + barra fixa é específico do Resumo mensal — não se aplica a outras análises, a menos que explicitamente estendido no futuro.
 
-### Formato
+> Especificações de Formato, Stack técnica e Navegação (transversais ao produto, não específicas dessa feature) foram movidas para a seção [Arquitetura do produto](#arquitetura-do-produto).
 
-Vamos fazer tudo isso num formato web app. Suporte a modo escuro (dark mode) — detalhes do toggle de tema estão na seção Navegação, já que ele vive no menu lateral
+### Histórico por categoria
 
-### Stack técnica
+Segunda análise da seção Análises, ao lado do Resumo mensal: gráfico de linhas mostrando a evolução do saldo líquido por categoria ao longo dos meses. Motivação: até aqui só existe uma visualização de um único mês por vez (Resumo mensal); esta análise mostra se um gasto está crescendo, diminuindo, ou teve um pico em algum mês específico.
 
-Next.js para front e JSON local para armazenamento das transações
+- **Eixo X:** tempo — cada ponto é um mês (**Mês de referência**, mesmo critério usado no Resumo mensal e na tela de Transações), considerando todos os meses disponíveis nos dados.
+- **Eixo Y:** valor — **saldo líquido** = soma das saídas − soma das entradas, mesmo cálculo já usado no Resumo mensal.
+- **Estado default:** uma única linha, representando o saldo líquido total de todas as categorias, por mês.
+- **Cálculo do total:** inclui também transações que ainda não foram categorizadas — elas representam gasto real, mesmo sem categoria definida.
+- **Seleção de categoria(s):** dropdown com checkboxes (multi-select) — não chips clicáveis, já que hoje existem 27 categorias (com tendência de crescer) e isso ficaria poluído. Cada categoria selecionada vira sua própria linha no gráfico, com cor distinta. O dropdown também inclui a opção "Sem categoria" (mesmo padrão já usado no filtro de Categoria da tela de Transações), permitindo visualizar a evolução do saldo líquido das transações ainda não categorizadas como sua própria linha.
+- **Linha "Saldo líquido":** a linha agregada (de todas as categorias) sempre visível, mas muda de estilo conforme o estado de seleção:
+    - Sem categoria selecionada: estilo principal (cor forte/destaque).
+    - Com 1+ categoria(s) selecionada(s): estilo secundário/referência (cor mais fraca ou tracejada), servindo de contexto de escala sem competir visualmente com as categorias selecionadas.
+- **Tooltip:** ao passar o mouse sobre um ponto do eixo X (mês), mostra o mês e o valor de cada linha visível naquele ponto (Saldo líquido + categorias selecionadas).
+- **Escala do eixo Y:** compartilhada entre todas as linhas visíveis, com auto-ajuste ao intervalo de valores exibido no momento (comportamento padrão do recharts). Categorias com valores bem menores que o Saldo líquido aparecem mais próximas da base do gráfico, mas continuam visíveis e comparáveis entre si.
+- **Nomenclatura:** a linha agregada é rotulada como "Saldo líquido" (não "Total") na legenda e no tooltip, padronizando com o termo usado em Transações e no Resumo mensal.
 
-### Navegação
+**Por que linha simples, não empilhada (stacked) nem preenchida (area):**
 
-O produto terá um menu lateral fixo com duas seções: **Transações** e **Análises**.
+- Um gráfico empilhado só faz sentido visualmente quando as partes selecionadas somam o total — funciona bem apenas se todas as categorias forem selecionadas ao mesmo tempo. Como é possível selecionar um subconjunto, empilhar sugeriria visualmente que a soma das categorias selecionadas bate com o total, o que nem sempre é verdade.
+- Área preenchida com múltiplas categorias sobrepostas tem problema de oclusão visual — a categoria de maior valor tende a esconder as de menor valor, mesmo com transparência, principalmente a partir de 3 categorias selecionadas simultaneamente.
+- Linha simples escala melhor visualmente para múltiplas séries exibidas ao mesmo tempo, sem esses problemas de leitura.
 
-- **Transações**: lista de todas as transações já confirmadas, com as colunas Data, Tipo, Instituição, Formato, Empresa, Parcela, Valor, Categoria e Responsável.
-- **Análises**: comporta múltiplas análises. A primeira é o Resumo mensal (gráfico de barras por categoria). As demais análises já mapeadas no backlog (Visão geral vs. média histórica, Tendência da categoria) entram aqui também, conforme forem desenvolvidas.
-
-Um botão de upload de fatura fica sempre acessível, independente da seção onde o usuário está.
-
-O menu lateral também tem um botão de alternância de tema (claro/escuro), aplicado em todas as telas do app (Transações, Análises e revisão de upload). Ele tem três estados — Sistema (segue automaticamente o tema do sistema operacional), Claro e Escuro —, começando em "Sistema" por padrão. Uma escolha manual (Claro ou Escuro) fica salva e passa a valer nas próximas visitas.
-
-**Fluxo de upload:** (1) o usuário seleciona qual é a fonte do arquivo (ex: C6 (cartão de crédito), Nubank (cartão de crédito), Nubank (extrato conta corrente / Pix)) — isso define qual mapeamento de colunas será usado; (2) faz o upload do CSV; (3) passa pela tela de revisão/categorização (sugestões + edição manual); (4) confirma. As transações só aparecem na aba Transações depois dessa confirmação.
-
-**Tela de Transações:** organizada por fatura (cada fatura/mês é uma página, navegável com setas). O agrupamento por página usa o **Mês de referência** para todas as fontes (1, 2 e 3) — não a Data/Data de Compra. Isso evita que parcelas de uma mesma compra, que têm a mesma Data de Compra mas aparecem em faturas diferentes, caiam todas na mesma página, e mantém as transações de extrato alinhadas ao mesmo período das faturas de cartão. Inclui ordenação e filtro por coluna — ver seção "Ordenação e filtro na tela de Transações" logo abaixo, que substitui o filtro simples de categoria/mês do MVP anterior. A categoria de qualquer transação também pode ser editada diretamente aqui (não só na tela de revisão do upload), com o mesmo comportamento retroativo (atualiza todas as transações passadas da mesma empresa).
-
-No topo da página é exibido o **Saldo líquido do mês**: soma das saídas − soma das entradas de todas as transações daquele mês (mesmo cálculo do Resumo mensal), **independente do filtro selecionado** — ou seja, o valor reflete sempre o mês inteiro, mesmo que a tabela esteja filtrada.
+Usa recharts (`LineChart`), mesma biblioteca já usada no Resumo mensal — mantendo consistência de paleta de cores e suporte a dark mode.
 
 ### Ordenação e filtro na tela de Transações
 
@@ -114,6 +122,10 @@ Cada coluna da tabela (Data, Tipo, Instituição, Formato, Empresa, Categoria, V
 O app suporta múltiplas fontes de fatura/extrato. Antes do upload, o usuário seleciona qual é a fonte do arquivo — essa escolha determina qual mapeamento de colunas abaixo será aplicado.
 
 Cada tabela abaixo mostra, para cada **campo do app**, de onde ele vem no arquivo original ou qual regra é usada para preenchê-lo quando não existe uma coluna correspondente direta.
+
+#### Linhas inválidas durante a importação
+
+Quando uma linha do CSV importado não pode ser lida (data inválida, valor ilegível, etc.), ela é descartada e não gera transação. Na tela de revisão do upload, se houver linhas descartadas, um aviso aparece sempre visível (mesmo padrão de aviso colapsável usado no Resumo mensal) mostrando a contagem (ex: "⚠️ 3 linha(s) não puderam ser lidas"). Ao clicar, expande e lista cada linha descartada com: o conteúdo bruto da linha (ou o máximo recuperável dela) + o motivo específico do descarte (ex: "Data inválida: '32/13/2026'", "Valor não numérico: 'R$ abc'"), em vez do texto genérico atual.
 
 #### Fonte 1: C6 (cartão de crédito)
 
@@ -211,6 +223,36 @@ Pix trocados com outra pessoa física (ex: dividir plano de saúde com familiare
 #### Criação de categoria nova
 
 O seletor de categoria (na revisão do upload e na tela de Transações) inclui uma opção "+ Nova categoria" ao final da lista. Ao escolher essa opção, o usuário digita o nome da nova categoria, que passa a existir e ficar disponível em todos os seletores dali em diante.
+
+# Arquitetura do produto
+
+Especificações transversais ao produto (não específicas de uma feature/análise em particular).
+
+## Formato
+
+Vamos fazer tudo isso num formato web app. Suporte a modo escuro (dark mode) — detalhes do toggle de tema estão na seção Navegação, já que ele vive no menu lateral
+
+## Stack técnica
+
+Next.js para front e JSON local para armazenamento das transações
+
+## Navegação
+
+O produto terá um menu lateral fixo com duas seções: **Transações** e **Análises**.
+
+- **Transações**: lista de todas as transações já confirmadas, com as colunas Data, Tipo, Instituição, Formato, Empresa, Parcela, Valor, Categoria e Responsável.
+- **Análises**: comporta múltiplas análises, sempre visíveis simultaneamente na hierarquia do menu — não há opção de recolher/expandir essa lista. As análises disponíveis hoje são: Resumo mensal (gráfico de barras por categoria) e Histórico por categoria (gráfico de linhas mostrando o saldo líquido por categoria ao longo dos meses, sempre incluindo também a linha do valor total do mês como referência).
+    - **Destaque visual em dois níveis:** o item pai "Análises" fica com destaque ativo sempre que o usuário estiver em qualquer uma das análises (mesmo padrão que já existe hoje entre Transações e Análises). Dentro da lista, a análise específica sendo exibida no momento (Resumo mensal ou Histórico por categoria) também recebe destaque visual próprio, para indicar claramente qual das duas está ativa.
+
+Um botão de upload de fatura fica sempre acessível, independente da seção onde o usuário está.
+
+O menu lateral também tem um botão de alternância de tema (claro/escuro), aplicado em todas as telas do app (Transações, Análises e revisão de upload). Ele tem três estados — Sistema (segue automaticamente o tema do sistema operacional), Claro e Escuro —, começando em "Sistema" por padrão. Uma escolha manual (Claro ou Escuro) fica salva e passa a valer nas próximas visitas.
+
+**Fluxo de upload:** (1) o usuário seleciona qual é a fonte do arquivo (ex: C6 (cartão de crédito), Nubank (cartão de crédito), Nubank (extrato conta corrente / Pix)) — isso define qual mapeamento de colunas será usado; (2) faz o upload do CSV; (3) passa pela tela de revisão/categorização (sugestões + edição manual); (4) confirma. As transações só aparecem na aba Transações depois dessa confirmação.
+
+**Tela de Transações:** organizada por fatura (cada fatura/mês é uma página, navegável com setas). O agrupamento por página usa o **Mês de referência** para todas as fontes (1, 2 e 3) — não a Data/Data de Compra. Isso evita que parcelas de uma mesma compra, que têm a mesma Data de Compra mas aparecem em faturas diferentes, caiam todas na mesma página, e mantém as transações de extrato alinhadas ao mesmo período das faturas de cartão. Inclui ordenação e filtro por coluna — ver seção "Ordenação e filtro na tela de Transações" acima, que substitui o filtro simples de categoria/mês do MVP anterior. A categoria de qualquer transação também pode ser editada diretamente aqui (não só na tela de revisão do upload), com o mesmo comportamento retroativo (atualiza todas as transações passadas da mesma empresa).
+
+No topo da página é exibido o **Saldo líquido do mês**: soma das saídas − soma das entradas de todas as transações daquele mês (mesmo cálculo do Resumo mensal), **independente do filtro selecionado** — ou seja, o valor reflete sempre o mês inteiro, mesmo que a tabela esteja filtrada.
 
 # Stakeholders
 

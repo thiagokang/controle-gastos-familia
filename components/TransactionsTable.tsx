@@ -26,6 +26,7 @@ import { updateTransactionCategoryAction, updateTransactionCompanyAction } from 
 import type { Responsible, Transaction, TransactionType } from '@/lib/types';
 import { formatDateBR } from '@/lib/dateUtils';
 import { RESPONSIBLE_VALUES, getResponsible } from '@/lib/responsible';
+import { NO_CATEGORY_FILTER } from '@/lib/categoryFilter';
 import SuggestionSelect from './SuggestionSelect';
 import CompanyFilterCombobox from './transactions/CompanyFilterCombobox';
 import RangeFilterFields from './transactions/RangeFilterFields';
@@ -34,6 +35,15 @@ interface TransactionsTableProps {
   transactions: Transaction[];
   knownCompanies: string[];
   knownCategories: string[];
+  // Filtro de Categoria a aplicar já na primeira renderização — usado
+  // quando se chega aqui a partir de um link externo (ex: o aviso de
+  // categorias com saldo negativo do Resumo mensal), que já quer abrir a
+  // tela de Transações filtrada. Valor bruto da categoria, ou
+  // NO_CATEGORY_FILTER para "Sem categoria". Sem efeito depois da primeira
+  // renderização — dali em diante o filtro é só estado local (ver key={...}
+  // em app/transacoes/page.tsx, que remonta o componente quando essa prop
+  // muda).
+  initialCategoryFilter?: string;
 }
 
 function sortAlphabetically(values: string[]): string[] {
@@ -56,8 +66,9 @@ const DEFAULT_SORT: SortState = { column: 'date', direction: 'desc' };
 
 // Sentinela pro filtro de Categoria = "Sem categoria" (categoria vazia), pra
 // não confundir com "nenhum filtro selecionado" (que também precisaria de um
-// valor especial se usássemos '' pros dois casos).
-const NO_CATEGORY = '__sem_categoria__';
+// valor especial se usássemos '' pros dois casos). Compartilhado com quem
+// monta links pra cá já filtrados (ver lib/categoryFilter.ts).
+const NO_CATEGORY = NO_CATEGORY_FILTER;
 
 type FilterState =
   | { column: 'category'; value: string }
@@ -230,6 +241,7 @@ export default function TransactionsTable({
   transactions,
   knownCompanies: companiesFromServer,
   knownCategories: categoriesFromServer,
+  initialCategoryFilter,
 }: TransactionsTableProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -250,7 +262,9 @@ export default function TransactionsTable({
   const knownFormats = sortAlphabetically(Array.from(new Set(transactions.map((t) => t.format))));
 
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
-  const [filter, setFilter] = useState<FilterState | null>(null);
+  const [filter, setFilter] = useState<FilterState | null>(
+    initialCategoryFilter ? { column: 'category', value: initialCategoryFilter } : null
+  );
   const [openFilterColumn, setOpenFilterColumn] = useState<SortableColumn | null>(null);
 
   function handleSortClick(column: SortableColumn) {

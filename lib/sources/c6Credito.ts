@@ -4,9 +4,14 @@
 // Separador: ";" (típico de export feito/aberto em Excel no Brasil).
 
 import Papa from 'papaparse';
-import { normalizeHeader, parseFlexibleDate, parseSignedValue, stripAccents, stripBom } from '../csvHelpers';
-import type { ParseCsvResult, ParsedCsvRow } from './types';
+import { normalizeHeader, parseFlexibleDate, parseSignedValue, reconstructRawLine, stripAccents, stripBom } from '../csvHelpers';
+import type { ParseCsvResult, ParseError, ParsedCsvRow } from './types';
 import type { TransactionType } from '../types';
+
+// Separador do arquivo desta fonte — reaproveitado tanto pelo Papa.parse
+// quanto pra reconstruir o conteúdo bruto de uma linha descartada (ver
+// ParseError).
+const DELIMITER = ';';
 
 // Linhas com esse texto na Descrição são o próprio pagamento da fatura (a
 // pessoa quitando o cartão), não um gasto de verdade — não viram transação.
@@ -20,12 +25,12 @@ export function parseC6Credito(csvText: string): ParseCsvResult {
   const parsed = Papa.parse<Record<string, string>>(stripBom(csvText), {
     header: true,
     skipEmptyLines: true,
-    delimiter: ';',
+    delimiter: DELIMITER,
     transformHeader: normalizeHeader,
   });
 
   const rows: ParsedCsvRow[] = [];
-  const errors: string[] = [];
+  const errors: ParseError[] = [];
 
   parsed.data.forEach((rawRow, index) => {
     const lineNumber = index + 2; // +1 pelo cabeçalho, +1 porque index começa em 0
@@ -46,15 +51,15 @@ export function parseC6Credito(csvText: string): ParseCsvResult {
     const installment = rawInstallment.trim() === '' ? null : rawInstallment.trim();
 
     if (!date) {
-      errors.push(`Linha ${lineNumber}: data inválida ("${rawDate}").`);
+      errors.push({ line: lineNumber, raw: reconstructRawLine(rawRow, DELIMITER), reason: `Data inválida ("${rawDate}").` });
       return;
     }
     if (!description) {
-      errors.push(`Linha ${lineNumber}: descrição em branco.`);
+      errors.push({ line: lineNumber, raw: reconstructRawLine(rawRow, DELIMITER), reason: 'Descrição em branco.' });
       return;
     }
     if (signedValue === null) {
-      errors.push(`Linha ${lineNumber}: valor inválido ("${rawValue}").`);
+      errors.push({ line: lineNumber, raw: reconstructRawLine(rawRow, DELIMITER), reason: `Valor inválido ("${rawValue}").` });
       return;
     }
 
