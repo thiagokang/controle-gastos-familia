@@ -42,3 +42,6 @@ next-env.d.ts
 
 # dados financeiros locais (não commitar dados reais da família)
 /data/*.json
+
+# Resultados do eval de Empresa (contêm descrições reais de transações)
+/data/evals/

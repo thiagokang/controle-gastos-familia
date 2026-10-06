@@ -4,6 +4,7 @@
 > - [Registrar gasto, categorizar e um resumo mensal](https://app.notion.com/p/39fee8fb540380c1b45fc293cfca611c) (`page_id 39fee8fb-5403-80c1-b45f-c293cfca611c`) — registro de gasto, resumo mensal, ordenação/filtro em Transações, fontes de dados e regras de importação
 > - [Histórico por categoria](https://app.notion.com/p/39fee8fb540380179021d340d95101a8) (`page_id 39fee8fb-5403-8017-9021-d340d95101a8`) — segunda análise da seção Análises
 > - [Arquitetura do produto](https://app.notion.com/p/3c0ee8fb54038155928be282aca103b9) (`page_id 3c0ee8fb-5403-8155-928b-e282aca103b9`) — formato, stack técnica e navegação (transversal ao produto, movido para fora da página de registro de gasto)
+> - [Avaliação da identificação de Empresa (eval)](https://app.notion.com/p/3f0ee8fb54038110b593d52da24721c7) (`page_id 3f0ee8fb-5403-8110-b593-d52da24721c7`) — eval repetível do motor de normalização de Empresa (simulação mês a mês, linha de base antes de mudar a lógica)
 
 # Objetivo
 
@@ -233,6 +234,59 @@ A categoria "Transferência interna" marca dinheiro que muda de "bolso" sem ser 
 #### Criação de categoria nova
 
 O seletor de categoria (na revisão do upload e na tela de Transações) inclui uma opção "+ Nova categoria" ao final da lista. Ao escolher essa opção, o usuário digita o nome da nova categoria, que passa a existir e ficar disponível em todos os seletores dali em diante.
+
+# Avaliação da identificação de Empresa (eval)
+
+## Objetivo
+
+Medir, de forma repetível, quanto o motor de normalização acerta a Empresa ao importar um mês novo. Serve de linha de base antes de mudar a lógica (ex: sugestões por IA), permitindo comparar o antes e o depois.
+
+**Por que Empresa, e não Categoria:** a Categoria é derivada da Empresa (regras aprendidas por Empresa). Um erro de Empresa é a causa raiz dos erros de categoria.
+
+## Como funciona (simulação mês a mês)
+
+Para cada Mês de referência X, em ordem cronológica, a partir do segundo mês com dados:
+
+1. Reconstrói o conhecimento do motor usando **apenas** transações de meses anteriores a X (regras aprendidas + sugestões por palavra-chave)
+2. Roda o motor de normalização sobre as descrições brutas do mês X
+3. Compara a Empresa prevista com a Empresa final confirmada pelo usuário (o gabarito)
+
+O gabarito são as Empresas já confirmadas ou corrigidas pelo usuário. Nenhuma rotulagem nova é necessária.
+
+## Classificação de cada transação
+
+| Resultado | Definição | Impacto |
+| --- | --- | --- |
+| ✅ Match correto | Empresa prevista = Empresa final, e ela já existia antes de X | Nenhum trabalho; categoria herdada |
+| 🆕 Nova correta | Empresa final não existia antes de X, e o motor não a associou a nenhuma Empresa existente | Trabalho inevitável |
+| ✂️ Separação indevida | Empresa final já existia antes de X, mas o motor não a reconheceu | Trabalho manual extra |
+| 🔀 Fusão indevida | O motor associou a uma Empresa existente diferente da Empresa final | Erro silencioso: distorce totais |
+
+**Fora da pontuação:** Pix pessoa física (sem CNPJ), cuja Empresa é sempre manual por regra. Aparece apenas como contagem separada.
+
+## Métricas principais
+
+% de match correto, % de fusão indevida (meta: o mais perto possível de zero), % de separação indevida e % de nova correta, por mês e no total.
+
+## Saída
+
+Comando executado via Claude Code (ex: `npm run eval:empresa`), sem tela no app:
+
+- Tabela por mês + total
+- Lista dos erros 🔀 e ✂️ com descrição bruta, Empresa prevista e Empresa esperada
+- Resultado salvo em `data/evals/` (fora do Git) com a data da execução, para comparar execuções ao longo do tempo
+
+## Regras
+
+- Somente leitura: nunca altera transações, regras ou Empresas
+- Determinístico: mesmos dados → mesmo resultado
+- Dados permanecem locais (`data/`, fora do Git)
+
+## Fora de escopo nesta versão
+
+- Avaliação de Categoria
+- Dashboard (tela no app ou artifact)
+- Sugestões de Empresa por IA (próxima etapa, que será medida por este eval)
 
 # Arquitetura do produto
 
