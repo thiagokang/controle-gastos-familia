@@ -26,11 +26,11 @@ import { normalizeCompanyName } from '../lib/categorization';
 import { normalizeDescriptionKey, suggestCompany } from '../lib/companyNormalization';
 import type { CompanyRules, Transaction } from '../lib/types';
 
-type Outcome = 'match' | 'nova' | 'fusao' | 'separacao';
+type Outcome = 'match' | 'nova' | 'naoEncontrou' | 'sugestaoErrada';
 
 interface ErrorEntry {
   month: string;
-  outcome: 'fusao' | 'separacao';
+  outcome: 'naoEncontrou' | 'sugestaoErrada';
   description: string;
   predicted: string;
   expected: string;
@@ -42,14 +42,18 @@ interface MonthResult {
   scored: number;
   match: number;
   nova: number;
-  fusao: number;
-  separacao: number;
+  naoEncontrou: number;
+  sugestaoErrada: number;
   // Subconjunto de "nova": o motor (palavra-chave) já sugeriu exatamente o
   // nome final, mesmo a Empresa não existindo antes.
   novaSuggestedCorrectly: number;
-  outOfScorePix: number;
-  outOfScoreBoleto: number;
-  outOfScoreOther: number;
+  // Fora da pontuação: o motor não é consultado (extrato Nubank sem CNPJ,
+  // mesma regra do app), separado por Formato...
+  outPix: number;
+  outBoleto: number;
+  outDebito: number;
+  outOutro: number;
+  // ...ou a transação não tem Empresa preenchida (e passou pelo motor).
   emptyCompany: number;
 }
 
@@ -111,15 +115,16 @@ async function main() {
     }
 
     const r: MonthResult = {
-      month, scored: 0, match: 0, nova: 0, fusao: 0, separacao: 0, novaSuggestedCorrectly: 0,
-      outOfScorePix: 0, outOfScoreBoleto: 0, outOfScoreOther: 0, emptyCompany: 0,
+      month, scored: 0, match: 0, nova: 0, naoEncontrou: 0, sugestaoErrada: 0, novaSuggestedCorrectly: 0,
+      outPix: 0, outBoleto: 0, outDebito: 0, outOutro: 0, emptyCompany: 0,
     };
 
     for (const t of sorted.filter((x) => x.referenceMonth === month)) {
       if (isPixPessoaFisica(t)) {
-        if (t.format === 'pix') r.outOfScorePix++;
-        else if (t.format === 'boleto') r.outOfScoreBoleto++;
-        else r.outOfScoreOther++;
+        if (t.format === 'pix') r.outPix++;
+        else if (t.format === 'boleto') r.outBoleto++;
+        else if (t.format === 'cartão de débito') r.outDebito++;
+        else r.outOutro++;
         continue;
       }
       if (!t.company.trim()) {
@@ -134,18 +139,20 @@ async function main() {
       const finalExisted = existing.has(finalKey);
 
       let outcome: Outcome;
-      if (predictedKey !== '' && predictedKey === finalKey) {
+      if (predictedKey === '') {
+        outcome = finalExisted ? 'naoEncontrou' : 'nova';
+      } else if (predictedKey === finalKey) {
         outcome = finalExisted ? 'match' : 'nova';
         if (!finalExisted) r.novaSuggestedCorrectly++;
-      } else if (predictedKey !== '' && existing.has(predictedKey)) {
-        outcome = 'fusao';
       } else {
-        outcome = finalExisted ? 'separacao' : 'nova';
+        // Qualquer sugestão diferente da Empresa final é errada, exista
+        // a sugerida antes ou não (ex: "Azul" para "Zona Azul").
+        outcome = 'sugestaoErrada';
       }
 
       r.scored++;
       r[outcome]++;
-      if (outcome === 'fusao' || outcome === 'separacao') {
+      if (outcome === 'naoEncontrou' || outcome === 'sugestaoErrada') {
         errors.push({
           month, outcome, description: t.description, predicted,
           expected: t.company, suggestionSource: source,
@@ -158,24 +165,25 @@ async function main() {
   const sum = (k: keyof MonthResult) => results.reduce((a, r) => a + (r[k] as number), 0);
   const total: MonthResult = {
     month: 'TOTAL', scored: sum('scored'), match: sum('match'), nova: sum('nova'),
-    fusao: sum('fusao'), separacao: sum('separacao'), novaSuggestedCorrectly: sum('novaSuggestedCorrectly'),
-    outOfScorePix: sum('outOfScorePix'), outOfScoreBoleto: sum('outOfScoreBoleto'),
-    outOfScoreOther: sum('outOfScoreOther'), emptyCompany: sum('emptyCompany'),
+    naoEncontrou: sum('naoEncontrou'), sugestaoErrada: sum('sugestaoErrada'),
+    novaSuggestedCorrectly: sum('novaSuggestedCorrectly'),
+    outPix: sum('outPix'), outBoleto: sum('outBoleto'), outDebito: sum('outDebito'),
+    outOutro: sum('outOutro'), emptyCompany: sum('emptyCompany'),
   };
 
   // ---- Terminal ----
   console.log(`\nEval de Empresa — base de conhecimento: meses anteriores (${months[0]} só serve de base)\n`);
-  console.log('Mês      Pontuadas  ✅ Match    🆕 Nova     🔀 Fusão    ✂️ Separação   | fora: Pix  Boleto  Outro | sem Empresa');
+  console.log('Mês      Pontuadas  ✅ Match    🆕 Nova     ❓ Não achou  ⚠️ Errada   | fora: Pix  Boleto  Débito  Outro | sem Empresa');
   for (const r of [...results, total]) {
     console.log(
       `${r.month.padEnd(8)} ${pad(r.scored, 8)}  ` +
-        `${pct(r.match, r.scored)}  ${pct(r.nova, r.scored)}  ${pct(r.fusao, r.scored)}  ${pct(r.separacao, r.scored)}     ` +
-        `| ${pad(r.outOfScorePix, 9)} ${pad(r.outOfScoreBoleto, 7)} ${pad(r.outOfScoreOther, 6)} | ${pad(r.emptyCompany, 7)}`
+        `${pct(r.match, r.scored)}  ${pct(r.nova, r.scored)}  ${pct(r.naoEncontrou, r.scored)}    ${pct(r.sugestaoErrada, r.scored)}     ` +
+        `| ${pad(r.outPix, 9)} ${pad(r.outBoleto, 7)} ${pad(r.outDebito, 7)} ${pad(r.outOutro, 6)} | ${pad(r.emptyCompany, 7)}`
     );
   }
   console.log(`\n(Nova correta inclui ${total.novaSuggestedCorrectly} caso(s) em que a palavra-chave já sugeriu o nome final, mesmo a Empresa sendo nova.)`);
 
-  for (const [label, kind] of [['🔀 Fusões indevidas', 'fusao'], ['✂️ Separações indevidas', 'separacao']] as const) {
+  for (const [label, kind] of [['⚠️ Sugestões erradas', 'sugestaoErrada'], ['❓ Não encontrou', 'naoEncontrou']] as const) {
     const list = errors.filter((e) => e.outcome === kind);
     console.log(`\n${label} (${list.length})`);
     for (const e of list) {
@@ -183,7 +191,7 @@ async function main() {
     }
   }
 
-  console.log(`\nSem Empresa definida — fora da pontuação (${emptyList.length})`);
+  console.log(`\nSem Empresa preenchida — fora da pontuação (${emptyList.length})`);
   for (const e of emptyList) console.log(`  [${e.month}] ${e.source} — ${e.description}`);
 
   // ---- Salvar ----

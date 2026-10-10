@@ -32,6 +32,7 @@ Nesse MVP, a idéia é que eu consiga subir a fatura em CSV para coletar esses d
 - Formato: De qual forma foi feita a transação (ex: pix, cartão de crédito)
 - Empresa: De onde ou para onde foi o dinheiro
     - A descrição bruta do arquivo (ex: "Zul 1 Cartao 27352u") não vira Empresa diretamente — ela passa por um motor de normalização (mesma lógica de aprendizado da Categoria: regra aprendida + sugestão por palavra-chave) que converte para um nome canônico (ex: "Azul"). Isso evita ter a mesma empresa duplicada com nomes diferentes
+    - Como funciona hoje: a regra aprendida usa como chave a descrição bruta inteira (em maiúsculas, com espaços normalizados) e só vale para uma descrição idêntica a uma já vista. A sugestão por palavra-chave busca qualquer trecho da descrição numa lista fixa (ver [Palavras-chave de Empresa](https://app.notion.com/p/3f4ee8fb540381ea8be5cf0bfb92ce64), em Referências) e pode sugerir um nome que ainda não existe como Empresa
     - A descrição bruta original é preservada e exibida como texto secundário abaixo do nome da Empresa, tanto na tela de revisão quanto na de Transações — serve de apoio para identificar/conferir a empresa
     - Se o usuário editar a Empresa de uma transação, a Categoria é recalculada automaticamente: se a nova Empresa já tem uma categoria aprendida, ela é aplicada; se for uma Empresa nova, a Categoria fica em branco para categorização manual
     - Importante: o motor de aprendizado de Categoria só deve criar ou aplicar regras quando a Empresa estiver definida. Se o usuário categorizar manualmente uma transação cuja Empresa ainda está em branco, essa escolha vale só para aquela transação — não deve criar uma regra salva, nem se propagar para outras transações que também estejam sem Empresa definida (elas não compartilham identidade só por estarem ambas em branco)
@@ -209,6 +210,8 @@ Quando a descrição bruta de uma transação contém um prefixo de app de deliv
 
 Se as duas formas fossem normalizadas para a mesma Empresa, a regra de Categoria aprendida se propagaria retroativamente entre elas (ex: categorizar um pedido de delivery como "Delivery" faria as idas presenciais ao mesmo restaurante também virarem "Delivery", e vice-versa) — o que não é o comportamento desejado, já que essas duas modalidades normalmente pertencem a categorias diferentes (ex: "Restaurante" vs. "Delivery").
 
+⚠️ **Status atual:** não há código dedicado a esta regra. Funciona por acaso para iFood (a chave é a descrição inteira), mas descrições com UBER e RAPPI caem na palavra-chave e viram "Uber"/"Rappi", fundindo estabelecimentos diferentes.
+
 #### Regra de categorização: Pix entre pessoas físicas nunca é automática
 
 Pix trocados com outra pessoa física (ex: dividir plano de saúde com familiares, rateio de restaurante entre amigos) não seguem o motor normal de aprendizado de Categoria, mesmo que a Empresa já tenha sido nomeada antes para aquela mesma pessoa em uma transação anterior. Isso porque a descrição bruta desses Pix (nome da pessoa, CPF mascarado, banco, agência, conta) não muda dependendo do propósito da transação — a mesma pessoa pode mandar Pix por motivos completamente diferentes (plano de saúde em um mês, rateio de restaurante no outro), então a Descrição não é um proxy confiável para Categoria nesses casos, ao contrário de estabelecimentos/merchants.
@@ -258,22 +261,27 @@ O gabarito são as Empresas já confirmadas ou corrigidas pelo usuário. Nenhuma
 | Resultado | Definição | Impacto |
 | --- | --- | --- |
 | ✅ Match correto | Empresa prevista = Empresa final, e ela já existia antes de X | Nenhum trabalho; categoria herdada |
-| 🆕 Nova correta | Empresa final não existia antes de X, e o motor não a associou a nenhuma Empresa existente | Trabalho inevitável |
-| ✂️ Separação indevida | Empresa final já existia antes de X, mas o motor não a reconheceu | Trabalho manual extra |
-| 🔀 Fusão indevida | O motor associou a uma Empresa existente diferente da Empresa final | Erro silencioso: distorce totais |
+| 🆕 Nova correta | Empresa final não existia antes de X, e o motor ou não sugeriu nada, ou sugeriu o nome certo a partir das keywords | Trabalho inevitável - criar manualmente |
+| ❓ Não encontrou | Empresa final já existia antes de X, mas o motor não a reconheceu e sugeriu nada | Trabalho manual extra - vincular à empresa correta |
+| ⚠️ Sugestão errada | O motor associou a uma Empresa diferente da Empresa final | Trabalho manual extra - corrigir na tela de revisão |
 
-**Fora da pontuação:** Pix pessoa física (sem CNPJ), cuja Empresa é sempre manual por regra. Aparece apenas como contagem separada.
+**Fora da pontuação:** toda transação que não passou pelo motor ou não possui um valor em "Empresa"
 
 ## Métricas principais
 
-% de match correto, % de fusão indevida (meta: o mais perto possível de zero), % de separação indevida e % de nova correta, por mês e no total.
+Por mês e no total:
+
+- % de match correto
+- % de sugestão errada (meta: o mais perto possível de zero)
+- % de não encontrou
+- % de nova correta
 
 ## Saída
 
 Comando executado via Claude Code (ex: `npm run eval:empresa`), sem tela no app:
 
 - Tabela por mês + total
-- Lista dos erros 🔀 e ✂️ com descrição bruta, Empresa prevista e Empresa esperada
+- Lista dos erros ❓ e ⚠️ com descrição bruta, Empresa prevista e Empresa esperada
 - Resultado salvo em `data/evals/` (fora do Git) com a data da execução, para comparar execuções ao longo do tempo
 
 ## Regras
