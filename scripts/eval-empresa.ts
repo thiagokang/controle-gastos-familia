@@ -21,7 +21,7 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import { containsCnpj } from '../lib/cnpj';
+import { isManualOnly } from '../lib/manualOnly';
 import { normalizeCompanyName } from '../lib/categorization';
 import { normalizeDescriptionKey, suggestCompany } from '../lib/companyNormalization';
 import type { CompanyRules, Transaction } from '../lib/types';
@@ -66,9 +66,13 @@ function sourceLabel(t: Transaction): string {
   return `${t.institution} ${t.format}`;
 }
 
-// Mesma regra de app/actions.ts: Fonte 3 (extrato Nubank) sem CNPJ.
-function isPixPessoaFisica(t: Transaction): boolean {
-  return sourceLabel(t) === 'Nubank extrato' && !containsCnpj(t.description);
+// Mesma regra de app/actions.ts (helper compartilhado em lib/manualOnly.ts).
+function isManualOnlyTx(t: Transaction): boolean {
+  return isManualOnly({
+    isNubankExtrato: sourceLabel(t) === 'Nubank extrato',
+    format: t.format,
+    description: t.description,
+  });
 }
 
 function pct(n: number, total: number): string {
@@ -109,7 +113,7 @@ async function main() {
     const existing = new Set<string>();
     for (const t of sorted) {
       if (t.referenceMonth! >= month) break;
-      if (isPixPessoaFisica(t) || !t.company.trim()) continue;
+      if (isManualOnlyTx(t) || !t.company.trim()) continue;
       rules[normalizeDescriptionKey(t.description)] = t.company;
       existing.add(normalizeCompanyName(t.company));
     }
@@ -120,7 +124,7 @@ async function main() {
     };
 
     for (const t of sorted.filter((x) => x.referenceMonth === month)) {
-      if (isPixPessoaFisica(t)) {
+      if (isManualOnlyTx(t)) {
         if (t.format === 'pix') r.outPix++;
         else if (t.format === 'boleto') r.outBoleto++;
         else if (t.format === 'cartão de débito') r.outDebito++;

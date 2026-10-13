@@ -13,7 +13,7 @@ import { parseCsvAction, confirmTransactionsAction, getLearnedCategoryForCompany
 import { applyCategoryToSameCompany, normalizeCompanyName } from '@/lib/categorization';
 import { CSV_SOURCE_LIST } from '@/lib/sources';
 import type { ParseError, SourceId } from '@/lib/sources';
-import type { ReviewRow } from '@/lib/types';
+import type { ReviewRow, SuggestionSource } from '@/lib/types';
 import CollapsibleWarning from './CollapsibleWarning';
 import ReviewTable from './ReviewTable';
 
@@ -21,19 +21,30 @@ function sortAlphabetically(values: string[]): string[] {
   return [...values].sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
 
-// Transações sem Empresa E sem Categoria definidas são as que mais precisam
-// de atenção do usuário — aparecem primeiro na revisão. Array.prototype.sort
-// é garantidamente estável, então dentro de cada grupo (pendente / já
-// resolvida) a ordem original do arquivo é preservada. Chamada uma única vez
-// quando o arquivo é lido (handleParse) — não reordena a cada edição, senão
-// uma linha "pularia" de lugar assim que o usuário terminasse de preenchê-la,
-// atrapalhando quem está revisando a lista de cima para baixo.
-function sortPendingFirst(rows: ReviewRow[]): ReviewRow[] {
-  return [...rows].sort((a, b) => {
-    const aIsPending = a.company === '' && a.category === '' ? 0 : 1;
-    const bIsPending = b.company === '' && b.category === '' ? 0 : 1;
-    return aIsPending - bIsPending;
-  });
+// Ordem da tela de revisão, em 3 grupos pela origem da Empresa — do que mais
+// precisa de atenção ao que já está resolvido:
+//   1. sem Empresa;
+//   2. Empresa sugerida pelo motor (palavra-chave; futuras fontes de IA);
+//   3. Empresa já aprendida.
+// O Record abaixo é exaustivo de propósito: toda nova SuggestionSource precisa
+// ser atribuída a um grupo, senão o TypeScript não compila.
+const COMPANY_SOURCE_GROUP: Record<SuggestionSource, number> = {
+  'sem-sugestao': 0,
+  'palavra-chave': 1,
+  aprendida: 2,
+};
+
+function reviewGroup(row: ReviewRow): number {
+  if (row.company === '') return 0;
+  return COMPANY_SOURCE_GROUP[row.companySource];
+}
+
+// Array.prototype.sort é estável, então dentro de cada grupo a ordem do
+// arquivo é preservada. Chamada uma única vez quando o arquivo é lido
+// (handleParse) — não reordena a cada edição, senão uma linha "pularia" de
+// lugar assim que o usuário terminasse de preenchê-la.
+function sortByReviewGroup(rows: ReviewRow[]): ReviewRow[] {
+  return [...rows].sort((a, b) => reviewGroup(a) - reviewGroup(b));
 }
 
 interface UploadFlowProps {
@@ -67,7 +78,7 @@ export default function UploadFlow({
       const formData = new FormData();
       formData.append('file', file);
       const result = await parseCsvAction(sourceId, formData);
-      setReviewRows(sortPendingFirst(result.rows));
+      setReviewRows(sortByReviewGroup(result.rows));
       setParseErrors(result.errors);
     } finally {
       setIsParsing(false);
@@ -163,7 +174,7 @@ export default function UploadFlow({
             installment,
             category,
             value,
-            isPixPessoaFisica,
+            isManualOnly,
             responsible,
           }) => ({
             date,
@@ -176,7 +187,7 @@ export default function UploadFlow({
             installment,
             category,
             value,
-            isPixPessoaFisica,
+            isManualOnly,
             responsible,
           })
         )

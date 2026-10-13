@@ -28,8 +28,8 @@ import type { CategoryRules, SuggestionSource, Transaction } from './types';
 // "bolso", não gasto nem renda real. Categorização é SEMPRE manual,
 // transação por transação: nunca participa do aprendizado/propagação
 // automática por Empresa, mesmo vindo repetidamente do mesmo remetente
-// (mesma exceção que já vale para Pix pessoa física em geral — ver
-// docs/PRD.md e isPixPessoaFisica em lib/types.ts). Também é totalmente
+// (mesma exceção que já vale para transações manual-only em geral — ver
+// docs/PRD.md e isManualOnly em lib/types.ts). Também é totalmente
 // excluída de qualquer cálculo agregado (Resumo mensal, Histórico por
 // categoria, saldo líquido do mês) — ver app/analises/resumo-mensal/page.tsx,
 // app/transacoes/page.tsx e lib/categoryHistory.ts.

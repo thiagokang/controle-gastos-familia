@@ -20,7 +20,7 @@ import { randomUUID } from 'crypto';
 import { CSV_SOURCES } from '@/lib/sources';
 import type { ParseError, SourceId } from '@/lib/sources';
 import { extractMonthKeyFromFilename } from '@/lib/csvHelpers';
-import { containsCnpj } from '@/lib/cnpj';
+import { isManualOnly } from '@/lib/manualOnly';
 import { getExtratoReferenceMonth } from '@/lib/dateUtils';
 import {
   INTERNAL_TRANSFER_CATEGORY,
@@ -97,21 +97,23 @@ export async function parseCsvAction(
   const categoryRules = await readCategoryRules();
 
   const reviewRows: ReviewRow[] = parsedRows.map((row) => {
-    // Fonte 3 (extrato/Pix) sem CNPJ na descrição = Pix entre pessoas
-    // físicas. A descrição bruta desse tipo de Pix (nome, CPF mascarado,
-    // banco, agência, conta) não muda dependendo do propósito da transação,
-    // então não é um proxy confiável para Empresa/Categoria — o motor de
-    // sugestão nem é consultado nesse caso, mesmo que já exista uma regra
-    // aprendida para essa mesma descrição de uploads anteriores.
-    const isPixPessoaFisica = sourceId === 'nubank-extrato' && !containsCnpj(row.description);
+    // Manual-only (ver lib/manualOnly.ts): Fonte 3 com Formato pix/outro e sem
+    // CNPJ na descrição — Pix entre pessoas físicas. O motor de sugestão nem é
+    // consultado nesse caso, mesmo que já exista uma regra aprendida para essa
+    // mesma descrição. Boleto e débito sem CNPJ passam pelo motor normal.
+    const isManualOnlyRow = isManualOnly({
+      isNubankExtrato: sourceId === 'nubank-extrato',
+      format: row.format,
+      description: row.description,
+    });
 
     // Primeiro sugerimos a Empresa a partir da descrição bruta...
-    const { company, source: companySource } = isPixPessoaFisica
+    const { company, source: companySource } = isManualOnlyRow
       ? { company: '', source: 'sem-sugestao' as const }
       : suggestCompany(row.description, companyRules);
     // ...e só então sugerimos a Categoria a partir da Empresa (se a empresa
     // ficou em branco, suggestCategory naturalmente também não acha nada).
-    const { category, source: categorySource } = isPixPessoaFisica
+    const { category, source: categorySource } = isManualOnlyRow
       ? { category: '', source: 'sem-sugestao' as const }
       : suggestCategory(company, categoryRules);
     return {
@@ -122,7 +124,7 @@ export async function parseCsvAction(
       companySource,
       category,
       categorySource,
-      isPixPessoaFisica,
+      isManualOnly: isManualOnlyRow,
       responsible,
     };
   });
@@ -151,7 +153,7 @@ interface ConfirmableRow {
   installment: string | null;
   category: string;
   value: number;
-  isPixPessoaFisica: boolean;
+  isManualOnly: boolean;
   responsible: Responsible;
 }
 
@@ -173,13 +175,14 @@ export async function confirmTransactionsAction(
   const newTransactions: Transaction[] = [];
 
   for (const row of reviewRows) {
-    // Pix entre pessoas físicas (Fonte 3 sem CNPJ): o usuário pode nomear a
+    // Manual-only (Pix/outro sem CNPJ na Fonte 3): o usuário pode nomear a
     // Empresa manualmente (ex: "Irmã X - Plano Saúde Mãe"), mas isso nunca
     // vira uma regra aprendida nem se aplica retroativamente a outras
-    // transações — cada Pix desses é categorizado transação a transação (ver
+    // transações — cada uma é categorizada transação a transação (ver
     // docs/PRD.md). A transação em si ainda é salva normalmente logo abaixo,
-    // só com os campos que o usuário definiu.
-    if (!row.isPixPessoaFisica) {
+    // só com os campos que o usuário definiu. Boleto e débito sem CNPJ
+    // aprendem normalmente.
+    if (!row.isManualOnly) {
       // Se o usuário não definiu empresa/categoria, não há o que aprender —
       // a transação é salva mesmo assim, só que com esses campos em branco.
       if (row.company.trim() !== '') {

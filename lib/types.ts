@@ -73,14 +73,14 @@ export interface ReviewRow {
   categorySource: SuggestionSource;
   value: number;
   responsible: Responsible;
-  // true só para linhas da Fonte 3 (extrato/Pix) cuja Descrição bruta não
-  // contém CNPJ — ou seja, Pix entre pessoas físicas (ver
-  // docs/PRD.md, "Pix entre pessoas físicas nunca é automática"). Nesse
-  // caso Empresa/Categoria nunca são sugeridas automaticamente (nem por
-  // regra aprendida, nem por palavra-chave) e a confirmação não deve criar
-  // nem aplicar retroativamente nenhuma regra aprendida a partir delas —
-  // só a transação em si é salva com o que o usuário definir manualmente.
-  isPixPessoaFisica: boolean;
+  // true só para linhas da Fonte 3 (extrato Nubank) com Formato "pix" ou
+  // "outro" cuja Descrição bruta não contém CNPJ — ver lib/manualOnly.ts e
+  // docs/PRD.md, "Pix entre pessoas físicas nunca é automática". Nesse caso
+  // Empresa/Categoria nunca são sugeridas automaticamente e a confirmação não
+  // cria nem aplica retroativamente nenhuma regra aprendida — só a transação
+  // em si é salva com o que o usuário definir manualmente. Boleto e cartão de
+  // débito sem CNPJ NÃO são manual-only.
+  isManualOnly: boolean;
 }
 
 // Mapa "nome normalizado da empresa" -> "categoria escolhida pelo usuário".

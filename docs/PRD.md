@@ -195,7 +195,7 @@ O campo **Responsável** identifica de quem é o extrato/fatura de origem daquel
 - **Fontes 1 e 2 (faturas de cartão de crédito):** Responsável é sempre fixo = "TK", já que hoje só existe um cartão de crédito da família, de titularidade do Thiago. Não há necessidade de inferência aqui.
 - Valores possíveis hoje: "TK" e "Deby" (fixos, sem opção de campo livre). Não há seletor manual no fluxo de upload — o valor é sempre derivado automaticamente pelas regras acima.
 - **Coluna na tela de Transações:** Responsável aparece como coluna, com ordenação e filtro de seleção única via dropdown, seguindo o mesmo padrão das demais colunas (Instituição, Formato) — ver seção "Ordenação e filtro na tela de Transações".
-- **Tela de revisão do upload:** a tela de revisão compartilha a mesma estrutura de tabela da tela de Transações — Responsável aparece como coluna ali também, do mesmo jeito, servindo de apoio à categorização manual de Pix. Não há necessidade de ordenação adicional baseada em Responsável — a ordenação já existente (Pix pessoa física no topo) é suficiente.
+- **Tela de revisão do upload:** a tela de revisão compartilha a mesma estrutura de tabela da tela de Transações — Responsável aparece como coluna ali também, do mesmo jeito, servindo de apoio à categorização manual de Pix. Não há necessidade de ordenação adicional baseada em Responsável — a ordenação já existente (ver "Ordem das transações na tela de revisão do upload", abaixo) é suficiente.
 
 #### Regra geral de estorno/reembolso
 
@@ -203,7 +203,7 @@ Aplica-se apenas às fontes 1 e 2 (faturas de cartão). Quando uma transação v
 
 #### Regra de normalização: apps de delivery não devem se fundir com o estabelecimento presencial
 
-Quando a descrição bruta de uma transação contém um prefixo de app de delivery/intermediário (ex: "IFD*", "UBER*", "RAPPI*"), o motor de normalização de Empresa não deve remover esse prefixo ao gerar o nome canônico. Isso é importante porque um mesmo estabelecimento pode gerar duas Empresas diferentes e legítimas:
+Quando a descrição bruta de uma transação contém um prefixo de app de delivery/intermediário (ex: "IFD\*", "UBER\*", "RAPPI\*"), o motor de normalização de Empresa não deve remover esse prefixo ao gerar o nome canônico. Isso é importante porque um mesmo estabelecimento pode gerar duas Empresas diferentes e legítimas:
 
 - Cobrança direta no estabelecimento (presencial) → Empresa = nome do estabelecimento (ex: "Restaurante X")
 - Cobrança via app de delivery → Empresa = nome do estabelecimento + indicação do app (ex: "Restaurante X (iFood)")
@@ -216,15 +216,36 @@ Se as duas formas fossem normalizadas para a mesma Empresa, a regra de Categoria
 
 Pix trocados com outra pessoa física (ex: dividir plano de saúde com familiares, rateio de restaurante entre amigos) não seguem o motor normal de aprendizado de Categoria, mesmo que a Empresa já tenha sido nomeada antes para aquela mesma pessoa em uma transação anterior. Isso porque a descrição bruta desses Pix (nome da pessoa, CPF mascarado, banco, agência, conta) não muda dependendo do propósito da transação — a mesma pessoa pode mandar Pix por motivos completamente diferentes (plano de saúde em um mês, rateio de restaurante no outro), então a Descrição não é um proxy confiável para Categoria nesses casos, ao contrário de estabelecimentos/merchants.
 
-**Como distinguir Pix pessoa física de Pix para empresa:** via regex, checando se a descrição bruta contém um CNPJ (formato `XX.XXX.XXX/XXXX-XX`, com ou sem pontuação — considerando variações de formatação bancária). Se contém CNPJ → é uma empresa, motor de aprendizado funciona normalmente. Se não contém CNPJ → trata como Pix pessoa física, cai na regra abaixo.
+**Como distinguir Pix pessoa física de Pix para empresa:** via regex, checando se a descrição bruta contém um CNPJ (formato `XX.XXX.XXX/XXXX-XX`, com ou sem pontuação — considerando variações de formatação bancária). Se contém CNPJ → é uma empresa, motor de aprendizado funciona normalmente. Se não contém CNPJ → depende do Formato (ver abaixo).
 
-**Comportamento para Pix pessoa física (sem CNPJ):**
+**Quais transações sem CNPJ ficam sempre manuais (Fonte 3):**
+
+| Formato | Sem CNPJ | Por quê |
+|---|---|---|
+| pix | Sempre manual | A descrição só traz a identidade da pessoa, não o propósito |
+| outro (TEDs/transferências) | Sempre manual | Mesmo motivo do Pix |
+| boleto | Motor normal de Empresa e Categoria | Quase sempre pago a uma organização (condomínio, escola, concessionária) com propósito estável — se comporta como um Pix com CNPJ |
+| cartão de débito | Motor normal de Empresa e Categoria | É uma compra em estabelecimento, igual à do cartão de crédito |
+
+O Formato usado é o mesmo já inferido na importação (ver tabela da Fonte 3). Transações com CNPJ seguem o motor normal em qualquer Formato.
+
+**Comportamento para Pix pessoa física (Formato pix ou outro, sem CNPJ):**
 
 - Nunca aplica automaticamente uma Empresa/Categoria com base em regra aprendida, mesmo que exista uma regra salva para aquela pessoa a partir de uma transação anterior.
 - Sempre exige que o usuário defina manualmente a Empresa (nomeada de forma a refletir o propósito da transação, ex: "Irmã X - Plano Saúde Mãe", "Ana - Restaurante") e a Categoria correspondente, transação a transação.
-- Na tela de revisão do upload, essas transações (Pix sem CNPJ) aparecem ordenadas no topo da lista, antes das demais transações já categorizadas automaticamente — sem necessidade de agrupamento visual separado, só ordenação simples. Isso porque o usuário sempre revisa a lista transação a transação, e esses Pix são justamente os que sempre vão exigir atenção manual.
+- Na tela de revisão do upload, essas transações chegam sem Empresa e por isso aparecem no topo da lista (ver "Ordem das transações na tela de revisão do upload" abaixo).
 
 **Reembolsos/estornos entre pessoas (ex: adiantar uma conta de restaurante e ser reembolsado pelos amigos via Pix):** o Pix recebido como reembolso deve ser categorizado na mesma Categoria do gasto original (ex: Restaurante), não em uma categoria à parte. Como o Resumo Mensal já calcula saldo líquido por categoria (saídas − entradas), isso neutraliza automaticamente o gasto adiantado sem exigir lógica adicional de cálculo — só a categorização manual correta no momento da revisão.
+
+#### Ordem das transações na tela de revisão do upload
+
+Ao carregar o arquivo, as transações são ordenadas em três grupos, pela origem da Empresa:
+
+1. **Sem Empresa** — o motor não sugeriu nada (inclui Pix pessoa física, que nunca recebe sugestão)
+2. **Empresa sugerida pelo motor** — por palavra-chave (e, no futuro, por IA); precisa de conferência
+3. **Empresa já aprendida** — vem de uma confirmação anterior do usuário
+
+Dentro de cada grupo, mantém a ordem original do arquivo. A ordenação acontece uma única vez, ao carregar o arquivo — editar uma linha não a move de lugar, para não atrapalhar quem revisa de cima para baixo.
 
 #### Regra de categorização: Transferência interna é sempre excluída dos totais, e nunca é automática
 
