@@ -59,7 +59,7 @@ Pré-requisito: Node.js (recomendado via nvm)
 
 ```bash
 # 1. Clone o repositório
-git clone https://github.com/tkangbw/controle-gastos-familia.git
+git clone https://github.com/thiagokang/controle-gastos-familia.git
 cd controle-gastos-familia
 
 # 2. Instale as dependências
