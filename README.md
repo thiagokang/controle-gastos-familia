@@ -1,5 +1,8 @@
 # controle-gastos-familia
 
+## Resumo
+Um app pessoal para controle de gastos da família fácil de se usar e que ajude no objetivo de atingir saúde financeira, se planejando para os gastos futuros com o crescimento da família. Construído assim como eu construiria algum outro produto como PM, usando IA como parceira de design, engenharia e operações. Com essa análise, reduzimos em 40% os gastos em delivery e uma análise completa pela nossa assessoria de investimentos que nos trouxe mais consciência de como estamos e o que precisamos fazer para atingir nossos objetivos futuros.
+
 ## Why & What
 Com a família crescendo, fica ainda mais necessário uma boa disciplina financeira até porque os custos futuros vão escalar e muito. Com isso em mente, desenvolvi esse app para registrar todos os gastos que temos como família e assim ter uma forma de analisar nossos gastos. A partir de categorização das transações e análises dessas categorias ao longo do tempo, conseguimos desenhar planos de ação para garantir uma saúde financeira.
 
