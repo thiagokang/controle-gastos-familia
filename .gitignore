@@ -45,3 +45,6 @@ next-env.d.ts
 
 # Resultados do eval de Empresa (contêm descrições reais de transações)
 /data/evals/
+
+# Cópia local do PRD, gerada a partir do Notion (fonte da verdade)
+/docs/PRD.md
